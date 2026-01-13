@@ -148,6 +148,7 @@ export function StudentPhotoUpload({
       {/* 버튼 */}
       <div className="flex gap-2">
         <Button
+          type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading || uploadMutation.isPending}
           variant="outline"
@@ -159,6 +160,7 @@ export function StudentPhotoUpload({
         </Button>
         {previewUrl && (
           <Button
+            type="button"
             onClick={handleDelete}
             disabled={deleteMutation.isPending}
             variant="outline"
