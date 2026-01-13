@@ -131,6 +131,15 @@ export function ClassManagement() {
     return teacher?.full_name || teacher?.email || '알 수 없음';
   };
 
+  const getTeacherDisplayName = (teacherId: string | null) => {
+    if (!teacherId || teacherId === 'unassigned') return '교사 선택';
+    const teacher = teachers.find((t: Teacher) => t.id === teacherId);
+    if (teacher) {
+      return teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email;
+    }
+    return '교사 선택';
+  };
+
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -271,13 +280,15 @@ export function ClassManagement() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="교사 배정" />
+                    <SelectValue>
+                      {getTeacherDisplayName(cls.main_teacher_id)}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">미배정</SelectItem>
                     {teachers.map((teacher: Teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.full_name || teacher.email}
+                        {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -331,7 +342,7 @@ export function ClassManagement() {
                     <SelectItem value="unassigned">미배정</SelectItem>
                     {teachers.map((teacher: Teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.full_name || teacher.email}
+                        {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -399,13 +410,15 @@ export function ClassManagement() {
                     defaultValue={editingClass.main_teacher_id || 'unassigned'}
                   >
                     <SelectTrigger>
-                      <SelectValue />
+                      <SelectValue>
+                        {getTeacherDisplayName(editingClass.main_teacher_id)}
+                      </SelectValue>
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">미배정</SelectItem>
                       {teachers.map((teacher: Teacher) => (
                         <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.full_name || teacher.email}
+                          {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
                         </SelectItem>
                       ))}
                     </SelectContent>
