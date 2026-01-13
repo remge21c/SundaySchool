@@ -176,3 +176,50 @@ export async function deleteVisitationLog(id: string): Promise<void> {
     throw error;
   }
 }
+
+/**
+ * 최근 심방 기록 조회 (비밀 보장 제외, 학생/반 정보 포함)
+ * @param limit 조회 개수 (기본값: 10)
+ * @returns 심방 기록 배열 (학생 이름, 반 정보 포함)
+ */
+export interface RecentVisitationLog extends VisitationLog {
+  student_name: string;
+  class_name: string;
+  department: string;
+}
+
+export async function getRecentVisitationLogs(
+  limit: number = 10
+): Promise<RecentVisitationLog[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await ((supabase
+    .from('visitation_logs') as any)
+    .select(
+      `
+      *,
+      students:student_id (
+        name,
+        classes:class_id (
+          name,
+          department
+        )
+      )
+    `
+    )
+    .eq('is_confidential', false)
+    .order('visit_date', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(limit));
+
+  if (error) {
+    throw error;
+  }
+
+  // 데이터 구조 변환
+  return (data ?? []).map((item: any) => ({
+    ...item,
+    student_name: item.students?.name || '',
+    class_name: item.students?.classes?.name || '',
+    department: item.students?.classes?.department || '',
+  })) as RecentVisitationLog[];
+}

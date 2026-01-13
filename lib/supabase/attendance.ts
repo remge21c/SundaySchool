@@ -270,3 +270,95 @@ export async function getAttendanceStats(
     attendanceRate: Math.round(attendanceRate * 10) / 10, // 소수점 첫째 자리까지
   };
 }
+
+/**
+ * 반별 주간 출석 통계
+ * @param classId 반 ID
+ * @param startDate 시작 날짜 (YYYY-MM-DD, 일요일)
+ * @param endDate 종료 날짜 (YYYY-MM-DD, 토요일)
+ * @returns 출석 통계 객체
+ */
+export async function getClassAttendanceStatsByWeek(
+  classId: string,
+  startDate: string,
+  endDate: string
+): Promise<AttendanceStats> {
+  // 전체 학생 수 조회
+  const { data: students, error: studentsError } = await supabase
+    .from('students')
+    .select('id', { count: 'exact' })
+    .eq('class_id', classId)
+    .eq('is_active', true);
+
+  if (studentsError) {
+    throw studentsError;
+  }
+
+  const total = students?.length ?? 0;
+
+  // 주간 출석 기록 조회
+  const { data: logs, error: logsError } = await (supabase
+    .from('attendance_logs')
+    .select('status')
+    .eq('class_id', classId)
+    .gte('date', startDate)
+    .lte('date', endDate) as any);
+
+  if (logsError) {
+    throw logsError;
+  }
+
+  const present =
+    logs?.filter((log: { status: string }) => log.status === 'present').length ?? 0;
+  const absent =
+    logs?.filter((log: { status: string }) => log.status === 'absent').length ?? 0;
+  const late = logs?.filter((log: { status: string }) => log.status === 'late').length ?? 0;
+
+  // 출석률 계산 (출석 + 지각 / 전체)
+  const attendanceRate = total > 0 ? ((present + late) / total) * 100 : 0;
+
+  return {
+    total,
+    present,
+    absent,
+    late,
+    attendanceRate: Math.round(attendanceRate * 10) / 10,
+  };
+}
+
+/**
+ * 전체 주간 출석 통계 (부서별/반별)
+ * @param startDate 시작 날짜 (YYYY-MM-DD, 일요일)
+ * @param endDate 종료 날짜 (YYYY-MM-DD, 토요일)
+ * @returns 부서별/반별 출석 통계 배열
+ */
+export interface WeeklyAttendanceStatsByClass {
+  classId: string;
+  className: string;
+  department: string;
+  stats: AttendanceStats;
+}
+
+export async function getAllAttendanceStatsByWeek(
+  startDate: string,
+  endDate: string
+): Promise<WeeklyAttendanceStatsByClass[]> {
+  // 모든 반 조회 (현재 연도)
+  const { getAllClasses } = await import('./classes');
+  const classes = await getAllClasses();
+
+  const results: WeeklyAttendanceStatsByClass[] = [];
+
+  // 각 반별로 주간 통계 계산
+  for (const classItem of classes) {
+    const stats = await getClassAttendanceStatsByWeek(classItem.id, startDate, endDate);
+    results.push({
+      classId: classItem.id,
+      className: classItem.name,
+      department: classItem.department,
+      stats,
+    });
+  }
+
+  return results;
+}
