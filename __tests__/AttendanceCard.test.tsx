@@ -150,11 +150,11 @@ describe('AttendanceCard', () => {
     await user.click(card);
 
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith('present');
+      expect(mockMutate).toHaveBeenCalledWith({ status: 'present', reason: undefined });
     });
   });
 
-  it('should toggle from present to absent on click when already present', async () => {
+  it('should toggle from present to late on click when already present', async () => {
     const user = userEvent.setup();
     const today = new Date().toISOString().split('T')[0];
     const mockAttendance: AttendanceLog = {
@@ -181,7 +181,69 @@ describe('AttendanceCard', () => {
     await user.click(card);
 
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith('absent');
+      expect(mockMutate).toHaveBeenCalledWith({ status: 'late', reason: undefined });
+    });
+  });
+
+  it('should toggle from late to absent on click when already late', async () => {
+    const user = userEvent.setup();
+    const today = new Date().toISOString().split('T')[0];
+    const mockAttendance: AttendanceLog = {
+      id: 'log-1',
+      student_id: 'student-1',
+      class_id: 'class-456',
+      date: today,
+      status: 'late',
+      reason: null,
+      created_at: '2025-01-12T10:00:00Z',
+    };
+
+    const reactQuery = await import('@tanstack/react-query');
+    vi.mocked(reactQuery.useQuery).mockReturnValue({
+      data: mockAttendance,
+      isLoading: false,
+    } as any);
+
+    render(
+      <AttendanceCard student={mockStudent} date={today} classId={mockStudent.class_id} />
+    );
+
+    const card = screen.getByRole('button');
+    await user.click(card);
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalledWith({ status: 'absent', reason: undefined });
+    });
+  });
+
+  it('should toggle from absent to present on click when already absent', async () => {
+    const user = userEvent.setup();
+    const today = new Date().toISOString().split('T')[0];
+    const mockAttendance: AttendanceLog = {
+      id: 'log-1',
+      student_id: 'student-1',
+      class_id: 'class-456',
+      date: today,
+      status: 'absent',
+      reason: '아픔',
+      created_at: '2025-01-12T10:00:00Z',
+    };
+
+    const reactQuery = await import('@tanstack/react-query');
+    vi.mocked(reactQuery.useQuery).mockReturnValue({
+      data: mockAttendance,
+      isLoading: false,
+    } as any);
+
+    render(
+      <AttendanceCard student={mockStudent} date={today} classId={mockStudent.class_id} />
+    );
+
+    const card = screen.getByRole('button');
+    await user.click(card);
+
+    await waitFor(() => {
+      expect(mockMutate).toHaveBeenCalledWith({ status: 'present', reason: undefined });
     });
   });
 

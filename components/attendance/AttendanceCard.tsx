@@ -70,14 +70,22 @@ const getStatusText = (status: AttendanceStatus | null) => {
 
 /**
  * 다음 출석 상태로 토글
+ * 순서: 미체크(null) → 출석(present) → 지각(late) → 결석(absent) → 출석(present) (다시 시작)
  */
 const getNextStatus = (currentStatus: AttendanceStatus | null): AttendanceStatus => {
-  if (!currentStatus || currentStatus === 'late') {
+  if (!currentStatus) {
+    // 미체크 → 출석
     return 'present';
   }
   if (currentStatus === 'present') {
+    // 출석 → 지각
+    return 'late';
+  }
+  if (currentStatus === 'late') {
+    // 지각 → 결석
     return 'absent';
   }
+  // 결석 → 출석 (다시 시작)
   return 'present';
 };
 
