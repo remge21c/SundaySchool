@@ -131,7 +131,7 @@ export async function getClassesByTeacher(
   const classTeacherIds = (classTeachersData ?? []).map((row: any) => row.class_id);
 
   // class_teachers로 배정된 반 조회
-  const classTeacherClasses: Class[] = [];
+  let classTeacherClasses: Class[] = [];
   if (classTeacherIds.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await ((supabase
