@@ -45,7 +45,7 @@ export function ClassSidebar({
       <div
         className={cn(
           // 모바일: 오버레이 + 슬라이드
-          'md:relative',
+          'md:sticky md:top-16',
           'fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg',
           'transform transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
@@ -67,7 +67,7 @@ export function ClassSidebar({
         </div>
 
         {/* 트리 뷰 */}
-        <div className="p-4 overflow-y-auto h-[calc(100vh-4rem)]">
+        <div className="p-4 overflow-y-auto h-[calc(100vh-4rem)] md:h-[calc(100vh-8rem)]">
           <ClassTree
             onSelect={(classId) => {
               onSelect(classId);
