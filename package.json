@@ -16,7 +16,8 @@
     "check:supabase": "tsx scripts/check-supabase.ts",
     "verify:schema": "tsx scripts/verify-schema.ts",
     "gen:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > types/supabase.ts",
-    "create-admin": "tsx scripts/create-admin.ts"
+    "create-admin": "tsx scripts/create-admin.ts",
+    "seed-test-data": "tsx scripts/seed-test-data.ts"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.15",
@@ -39,7 +40,7 @@
   "devDependencies": {
     "@playwright/test": "^1.40.1",
     "@testing-library/jest-dom": "^6.1.5",
-    "@testing-library/react": "^14.1.2",
+    "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.6.1",
     "@types/node": "^20.10.6",
     "@types/react": "^18.2.46",
