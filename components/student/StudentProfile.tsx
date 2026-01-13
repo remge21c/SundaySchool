@@ -12,6 +12,7 @@ import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { VisitationTimeline } from '@/components/visitation/VisitationTimeline';
 import { VisitationForm } from '@/components/visitation/VisitationForm';
+import { StudentPhotoUpload } from './StudentPhotoUpload';
 import { User, Phone, MapPin, School, Calendar, AlertTriangle } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -89,6 +90,14 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
             <CardDescription>학생의 기본 정보입니다</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* 학생 사진 */}
+            <div className="flex justify-center pb-4 border-b border-gray-200">
+              <StudentPhotoUpload
+                studentId={student.id}
+                currentPhotoUrl={(student as any).photo_url || null}
+                studentName={student.name}
+              />
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">이름</label>

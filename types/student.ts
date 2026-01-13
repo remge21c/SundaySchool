@@ -14,6 +14,7 @@ export interface Student {
   parent_contact: string;
   address: string | null;
   allergies: Json | null;
+  photo_url: string | null;
   is_active: boolean;
   class_id: string;
   created_at: string;

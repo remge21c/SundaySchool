@@ -166,12 +166,22 @@ export default function StudentsPage() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                            <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                <span className="text-blue-600 font-semibold">
-                                  {student.name.charAt(0)}
-                                </span>
-                              </div>
+                        <div className="flex items-center gap-3">
+                          {(student as any).photo_url ? (
+                            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                              <img
+                                src={(student as any).photo_url}
+                                alt={student.name}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                              <span className="text-blue-600 font-semibold">
+                                {student.name.charAt(0)}
+                              </span>
+                            </div>
+                          )}
                               <div>
                                 <div className="font-semibold text-base">{student.name}</div>
                                 <div className="text-sm text-gray-600">

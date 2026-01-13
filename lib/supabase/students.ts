@@ -160,6 +160,19 @@ export async function updateStudent(
 }
 
 /**
+ * 학생 사진 URL 업데이트
+ * @param studentId 학생 ID
+ * @param photoUrl 사진 URL
+ * @returns 업데이트된 학생 정보
+ */
+export async function updateStudentPhoto(
+  studentId: string,
+  photoUrl: string | null
+): Promise<Student> {
+  return updateStudent(studentId, { photo_url: photoUrl } as StudentUpdate);
+}
+
+/**
  * 학생 삭제 (소프트 삭제: is_active = false)
  * @param studentId 학생 ID
  */
