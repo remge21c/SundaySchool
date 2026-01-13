@@ -155,22 +155,28 @@ export function StudentAddForm({
             {/* 반 선택 */}
             <div className="space-y-2">
               <Label htmlFor="class">반 *</Label>
-              <Select
-                value={selectedClassId}
-                onValueChange={setSelectedClassId}
-                required
-              >
-                <SelectTrigger id="class">
-                  <SelectValue placeholder="반을 선택하세요" />
-                </SelectTrigger>
-                <SelectContent>
-                  {classes.map((cls) => (
-                    <SelectItem key={cls.id} value={cls.id}>
-                      {cls.department} - {cls.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              {classes.length === 0 ? (
+                <div className="rounded-md bg-yellow-50 border border-yellow-200 p-3 text-sm text-yellow-800">
+                  등록된 반이 없습니다. 먼저 관리자 페이지에서 반을 생성해주세요.
+                </div>
+              ) : (
+                <Select
+                  value={selectedClassId}
+                  onValueChange={setSelectedClassId}
+                  required
+                >
+                  <SelectTrigger id="class">
+                    <SelectValue placeholder="반을 선택하세요" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {classes.map((cls) => (
+                      <SelectItem key={cls.id} value={cls.id}>
+                        {cls.department} - {cls.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
             </div>
 
             {/* 이름 */}
@@ -288,7 +294,7 @@ export function StudentAddForm({
             >
               취소
             </Button>
-            <Button type="submit" disabled={mutation.isPending}>
+            <Button type="submit" disabled={mutation.isPending || classes.length === 0}>
               {mutation.isPending ? '추가 중...' : '추가'}
             </Button>
           </DialogFooter>
