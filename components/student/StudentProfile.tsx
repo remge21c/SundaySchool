@@ -7,6 +7,7 @@
 
 import { useStudentProfile } from '@/hooks/useStudentProfile';
 import { useAuth } from '@/hooks/useAuth';
+import { useClass } from '@/hooks/useClasses';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Container } from '@/components/layout/Container';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -28,6 +29,9 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
   const { data: student, isLoading, error } = useStudentProfile(studentId);
   const { user } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  
+  // 반 정보 조회
+  const { data: classInfo } = useClass(student?.class_id);
 
   /**
    * 학생 정보 수정 버튼 클릭 핸들러
@@ -83,10 +87,15 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
     | null
     | undefined;
 
+  // 제목에 부서와 반 이름 추가
+  const title = classInfo
+    ? `${student.name} 학생 프로필 (${classInfo.department} ${classInfo.name})`
+    : `${student.name} 학생 프로필`;
+
   return (
     <Container>
       <PageHeader
-        title={`${student.name} 학생 프로필`}
+        title={title}
         description="학생의 상세 정보를 확인하세요"
       />
 
