@@ -123,9 +123,25 @@ export function ClassManagement() {
     return acc;
   }, {} as Record<string, Class[]>);
 
+  // 부서 순서대로 반 목록 정렬
+  const getDepartmentSortOrder = (departmentName: string): number => {
+    const department = departments.find((dept) => dept.name === departmentName);
+    return department?.sort_order ?? 999; // 부서를 찾을 수 없으면 마지막에 배치
+  };
+
+  const sortedClasses = [...classes].sort((a, b) => {
+    const orderA = getDepartmentSortOrder(a.department);
+    const orderB = getDepartmentSortOrder(b.department);
+    if (orderA !== orderB) {
+      return orderA - orderB;
+    }
+    // 같은 부서 내에서는 반 이름으로 정렬
+    return a.name.localeCompare(b.name, 'ko');
+  });
+
   const filteredClasses = selectedDepartment
     ? classesByDepartment[selectedDepartment] || []
-    : classes;
+    : sortedClasses;
 
   const getTeacherName = (teacherId: string | null) => {
     if (!teacherId) return '미배정';
