@@ -21,7 +21,7 @@ BEGIN
     -- 규칙이 있고 포인트가 0보다 큰 경우에만 거래 생성
     IF talent_amount IS NOT NULL AND talent_amount > 0 THEN
       -- 출석일이 속한 주의 일요일 계산 (DOW: 0=일요일, 6=토요일)
-      week_start_date := NEW.date - (EXTRACT(DOW FROM NEW.date)::int || ' days')::interval;
+      week_start_date := NEW.date - (EXTRACT(DOW FROM NEW.date)::int * INTERVAL '1 day');
       
       -- 중복 지급 방지: 해당 주(일요일~토요일)에 이미 '출석' 카테고리 거래가 있는지 확인
       IF NOT EXISTS (
@@ -29,7 +29,7 @@ BEGIN
         WHERE student_id = NEW.student_id
           AND category = attendance_category
           AND DATE(created_at) >= week_start_date
-          AND DATE(created_at) < week_start_date + INTERVAL '7 days'
+          AND DATE(created_at) <= (week_start_date + INTERVAL '6 days')
       ) THEN
         -- talent_transactions 테이블에 INSERT
         INSERT INTO talent_transactions (student_id, amount, category)
