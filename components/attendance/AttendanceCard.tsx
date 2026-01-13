@@ -152,6 +152,8 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['attendance', student.id, date] });
       queryClient.invalidateQueries({ queryKey: ['attendance', 'class', classId, date] });
+      // 출석 통계도 무효화하여 실시간 업데이트
+      queryClient.invalidateQueries({ queryKey: ['attendance-stats', classId, date] });
     },
   });
 
