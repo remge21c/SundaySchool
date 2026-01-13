@@ -5,12 +5,11 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
@@ -18,14 +17,16 @@ import { ko } from 'date-fns/locale';
 import { useClass, useClassesByTeacher } from '@/hooks/useClasses';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserRole } from '@/lib/utils/auth';
+import { getCurrentWeekRange } from '@/lib/utils/date';
 
 export default function AttendancePage() {
   const { user, loading: authLoading } = useAuth();
   
-  // 오늘 날짜를 기본값으로 사용
-  const [selectedDate, setSelectedDate] = useState(() => {
-    return format(new Date(), 'yyyy-MM-dd');
-  });
+  // 이번주 일요일 날짜로 고정
+  const selectedDate = useMemo(() => {
+    const weekRange = getCurrentWeekRange();
+    return weekRange.startDate;
+  }, []);
 
   // 선택된 반 ID
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
@@ -78,25 +79,19 @@ export default function AttendancePage() {
 
         {/* 메인 컨텐츠 - 모바일/데스크톱 공통으로 가변 폭 */}
         <div className="flex-1 space-y-6">
-          {/* 날짜 선택 카드 */}
+          {/* 날짜 정보 카드 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Calendar className="h-5 w-5" />
-                날짜 선택
+                출석 체크 날짜
               </CardTitle>
               <CardDescription>
-                출석을 체크할 날짜를 선택하세요
+                출석 체크는 이번주 일요일 날짜로 기록됩니다
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="max-w-xs"
-              />
-              <p className="mt-2 text-sm text-gray-600">{formattedDate}</p>
+              <p className="text-lg font-semibold text-gray-900">{formattedDate}</p>
             </CardContent>
           </Card>
 
