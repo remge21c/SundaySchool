@@ -156,7 +156,8 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
   });
 
   const handleClick = () => {
-    if (mutation.isPending || isLoading) return;
+    // 모달이 열려있거나 mutation이 진행 중이면 클릭 무시
+    if (isAbsenceModalOpen || mutation.isPending || isLoading) return;
 
     const nextStatus = getNextStatus(attendance?.status || null);
 
@@ -170,8 +171,19 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
   };
 
   const handleAbsenceReasonConfirm = (reason: string) => {
-    setIsAbsenceModalOpen(false);
-    mutation.mutate({ status: 'absent', reason });
+    // mutation 완료 후 모달 닫기
+    mutation.mutate(
+      { status: 'absent', reason },
+      {
+        onSuccess: () => {
+          setIsAbsenceModalOpen(false);
+        },
+        onError: () => {
+          // 에러 발생 시에도 모달은 닫기 (사용자가 다시 시도할 수 있도록)
+          setIsAbsenceModalOpen(false);
+        },
+      }
+    );
   };
 
   const handleAbsenceReasonCancel = () => {
