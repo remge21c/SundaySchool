@@ -6,7 +6,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Home, Calendar, AlertCircle, X } from 'lucide-react';
+import { Home, Calendar, AlertCircle, X, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -40,6 +40,11 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       label: '출석 체크',
       path: '/attendance',
       icon: <Calendar className="h-5 w-5" />,
+    },
+    {
+      label: '학생 관리',
+      path: '/students',
+      icon: <Users className="h-5 w-5" />,
     },
     {
       label: '장기 결석 알림',

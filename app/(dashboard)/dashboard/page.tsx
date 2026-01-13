@@ -51,24 +51,24 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* 빠른 액션 카드: 학생 목록 */}
-        <Card className="cursor-pointer hover:shadow-lg transition-shadow" role="button" tabIndex={0} onClick={() => router.push('/attendance')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push('/attendance'); }}>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-green-500" />
-              학생 관리
-            </CardTitle>
-            <CardDescription>
-              학생 정보를 확인하고 관리하세요
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-gray-600">출석 페이지로 이동</span>
-              <ArrowRight className="h-4 w-4 text-gray-400" />
-            </div>
-          </CardContent>
-        </Card>
+              {/* 빠른 액션 카드: 학생 목록 */}
+              <Card className="cursor-pointer hover:shadow-lg transition-shadow" role="button" tabIndex={0} onClick={() => router.push('/students')} onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') router.push('/students'); }}>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="h-5 w-5 text-green-500" />
+                    학생 관리
+                  </CardTitle>
+                  <CardDescription>
+                    학생 정보를 확인하고 관리하세요
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">학생 관리 페이지로 이동</span>
+                    <ArrowRight className="h-4 w-4 text-gray-400" />
+                  </div>
+                </CardContent>
+              </Card>
 
         {/* 장기 결석 알림 카드 */}
         {teacherId && (
