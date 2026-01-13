@@ -30,23 +30,54 @@ export function useAuth(): UseAuthReturn {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+
+    // 타임아웃 설정 (5초 후 로딩 해제)
+    const timeoutId = setTimeout(() => {
+      if (mounted) {
+        setLoading(false);
+      }
+    }, 5000);
+
     // 초기 세션 확인
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    supabase.auth
+      .getSession()
+      .then(({ data: { session }, error }) => {
+        if (!mounted) return;
+        
+        if (error) {
+          console.error('세션 조회 에러:', error);
+        }
+        
+        setSession(session);
+        setUser(session?.user ?? null);
+        setLoading(false);
+        clearTimeout(timeoutId);
+      })
+      .catch((error) => {
+        console.error('세션 조회 실패:', error);
+        if (mounted) {
+          setLoading(false);
+          clearTimeout(timeoutId);
+        }
+      });
 
     // 인증 상태 변경 감지
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      clearTimeout(timeoutId);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
   }, []);
 
   /**
