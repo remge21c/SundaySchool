@@ -20,28 +20,48 @@ export async function uploadStudentPhoto(
   const fileName = `${studentId}-${Date.now()}.${fileExt}`;
   const filePath = `students/${fileName}`;
 
-  // 파일 업로드
-  const { data, error } = await supabase.storage
-    .from('student-photos')
-    .upload(filePath, file, {
-      cacheControl: '3600',
-      upsert: false, // 기존 파일 덮어쓰기 방지
-    });
+  try {
+    // 파일 업로드
+    const { data, error } = await supabase.storage
+      .from('student-photos')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false, // 기존 파일 덮어쓰기 방지
+      });
 
-  if (error) {
-    throw error;
+    if (error) {
+      // 버킷이 없는 경우
+      if (error.message.includes('Bucket not found') || error.message.includes('does not exist')) {
+        throw new Error(
+          'Storage 버킷이 생성되지 않았습니다. Supabase 대시보드에서 "student-photos" 버킷을 생성해주세요.'
+        );
+      }
+      // 권한 오류
+      if (error.message.includes('new row violates') || error.message.includes('policy')) {
+        throw new Error(
+          '업로드 권한이 없습니다. Storage 정책을 확인해주세요.'
+        );
+      }
+      throw error;
+    }
+
+    if (!data) {
+      throw new Error('파일 업로드에 실패했습니다.');
+    }
+
+    // 공개 URL 가져오기
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from('student-photos').getPublicUrl(filePath);
+
+    return publicUrl;
+  } catch (error: any) {
+    // 에러 메시지 개선
+    if (error instanceof Error) {
+      throw error;
+    }
+    throw new Error(`사진 업로드 실패: ${error?.message || '알 수 없는 오류'}`);
   }
-
-  if (!data) {
-    throw new Error('파일 업로드에 실패했습니다.');
-  }
-
-  // 공개 URL 가져오기
-  const {
-    data: { publicUrl },
-  } = supabase.storage.from('student-photos').getPublicUrl(filePath);
-
-  return publicUrl;
 }
 
 /**

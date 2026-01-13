@@ -60,9 +60,10 @@ export function StudentPhotoUpload({
       queryClient.invalidateQueries({ queryKey: ['students', studentId] });
       queryClient.invalidateQueries({ queryKey: ['student-profile', studentId] });
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error('사진 업로드 실패:', error);
-      alert('사진 업로드에 실패했습니다. 다시 시도해주세요.');
+      const errorMessage = error?.message || '알 수 없는 오류';
+      alert(`사진 업로드에 실패했습니다.\n\n${errorMessage}\n\n자세한 내용은 브라우저 콘솔을 확인해주세요.`);
     },
   });
 

@@ -169,7 +169,18 @@ export async function updateStudentPhoto(
   studentId: string,
   photoUrl: string | null
 ): Promise<Student> {
-  return updateStudent(studentId, { photo_url: photoUrl } as StudentUpdate);
+  try {
+    return await updateStudent(studentId, { photo_url: photoUrl } as StudentUpdate);
+  } catch (error: any) {
+    // photo_url 필드가 없는 경우
+    if (error?.message?.includes('column "photo_url"') || error?.code === '42703') {
+      throw new Error(
+        '학생 테이블에 photo_url 필드가 없습니다. Supabase에서 다음 SQL을 실행해주세요:\n' +
+        'ALTER TABLE students ADD COLUMN IF NOT EXISTS photo_url TEXT;'
+      );
+    }
+    throw error;
+  }
 }
 
 /**
