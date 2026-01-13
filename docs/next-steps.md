@@ -38,25 +38,38 @@
 
 #### 1.1 웹 애플리케이션 기능 테스트
 
-- [ ] **출석 체크 페이지 확인**
+- [x] **출석 체크 페이지 확인** ✅
   - URL: https://sunday-school-eta.vercel.app/attendance
   - 반 목록이 정상적으로 표시되는지 확인
   - 반 선택 후 학생 목록이 표시되는지 확인
   - 출석 기록이 정상적으로 표시되는지 확인
 
-- [ ] **학생 프로필 확인**
+- [x] **학생 프로필 확인** ✅
   - 출석 체크 페이지에서 학생 클릭
   - 학생 상세 정보가 표시되는지 확인
   - 심방 기록이 표시되는지 확인
 
-- [ ] **대시보드 확인**
+- [x] **대시보드 확인** ✅
   - URL: https://sunday-school-eta.vercel.app/dashboard
   - 장기 결석 알림이 정상적으로 표시되는지 확인
   - 콘솔에 에러가 없는지 확인
 
+- [ ] **관리자 페이지 확인** (진행 중)
+  - URL: https://sunday-school-eta.vercel.app/admin
+  - 반 생성/수정/삭제 기능 확인
+  - 교사 배정 기능 확인
+  - 담임 선택 시 교사 이름 표시 확인
+  - 참고: `docs/admin-page-verification-guide.md`
+
+- [ ] **교사 회원가입 확인** (진행 중)
+  - URL: https://sunday-school-eta.vercel.app/signup
+  - 새 교사 계정 생성 테스트
+  - 회원가입 후 프로필 자동 생성 확인
+  - 참고: `docs/signup-verification-guide.md`
+
 #### 1.2 데이터 확인
 
-- [ ] **Supabase 대시보드에서 데이터 확인**
+- [x] **Supabase 대시보드에서 데이터 확인** ✅
   - Table Editor → classes: 반 데이터 확인
   - Table Editor → students: 학생 데이터 확인
   - Table Editor → attendance_logs: 출석 기록 확인

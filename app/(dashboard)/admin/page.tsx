@@ -11,6 +11,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { isAdmin } from '@/lib/utils/auth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClassManagement } from '@/components/admin/ClassManagement';
+import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -82,9 +83,14 @@ export default function AdminPage() {
     <>
       <PageHeader
         title="관리자 페이지"
-        description="반 관리 및 교사 배정"
+        description="부서 관리, 반 관리 및 교사 배정"
       />
-      <ClassManagement />
+      <div className="space-y-8">
+        <DepartmentManagement />
+        <div className="border-t pt-8">
+          <ClassManagement />
+        </div>
+      </div>
     </>
   );
 }

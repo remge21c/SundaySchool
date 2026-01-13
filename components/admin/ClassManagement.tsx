@@ -15,6 +15,7 @@ import {
   deleteClass,
   assignTeacherToClass,
 } from '@/lib/supabase/admin';
+import { getAllDepartments } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -37,7 +38,6 @@ import { Label } from '@/components/ui/label';
 import { Plus, Edit, Trash2, Users } from 'lucide-react';
 import type { Class } from '@/types/class';
 
-const DEPARTMENTS = ['유년부', '초등부', '중등부', '고등부'];
 const CURRENT_YEAR = new Date().getFullYear();
 
 interface Teacher {
@@ -73,6 +73,17 @@ export function ClassManagement() {
   } = useQuery({
     queryKey: ['admin', 'teachers'],
     queryFn: getAllTeachers,
+    retry: 1,
+  });
+
+  // 부서 목록 조회
+  const {
+    data: departments = [],
+    isLoading: departmentsLoading,
+    error: departmentsError,
+  } = useQuery({
+    queryKey: ['departments'],
+    queryFn: getAllDepartments,
     retry: 1,
   });
 
@@ -182,7 +193,7 @@ export function ClassManagement() {
     assignTeacherMutation.mutate({ classId, teacherId });
   };
 
-  if (classesLoading || teachersLoading) {
+  if (classesLoading || teachersLoading || departmentsLoading) {
     return (
       <div className="text-center text-gray-500">
         <div className="mb-2">로딩 중...</div>
@@ -191,7 +202,7 @@ export function ClassManagement() {
     );
   }
 
-  if (classesError || teachersError) {
+  if (classesError || teachersError || departmentsError) {
     return (
       <div className="rounded-md bg-destructive/10 p-4 text-destructive">
         <div className="font-semibold mb-2">데이터를 불러오는 중 오류가 발생했습니다.</div>
@@ -201,6 +212,9 @@ export function ClassManagement() {
           )}
           {teachersError && (
             <div>교사 목록: {teachersError instanceof Error ? teachersError.message : '알 수 없는 오류'}</div>
+          )}
+          {departmentsError && (
+            <div>부서 목록: {departmentsError instanceof Error ? departmentsError.message : '알 수 없는 오류'}</div>
           )}
           <div className="mt-2 text-xs">
             관리자 권한이 올바르게 설정되었는지 확인하세요.
@@ -223,9 +237,9 @@ export function ClassManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">전체</SelectItem>
-            {DEPARTMENTS.map((dept) => (
-              <SelectItem key={dept} value={dept}>
-                {dept}
+            {departments.map((dept) => (
+              <SelectItem key={dept.id} value={dept.name}>
+                {dept.name}
               </SelectItem>
             ))}
           </SelectContent>
@@ -315,9 +329,9 @@ export function ClassManagement() {
                     <SelectValue placeholder="부서 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {DEPARTMENTS.map((dept) => (
-                      <SelectItem key={dept} value={dept}>
-                        {dept}
+                    {departments.map((dept) => (
+                      <SelectItem key={dept.id} value={dept.name}>
+                        {dept.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
