@@ -17,6 +17,8 @@ import { StudentPhotoUpload } from './StudentPhotoUpload';
 import { AllergyEditForm } from './AllergyEditForm';
 import { NoteForm } from './NoteForm';
 import { NoteTimeline } from './NoteTimeline';
+import { TalentCard } from './TalentCard';
+import { BadgeCard } from './BadgeCard';
 import { User, Phone, MapPin, School, Calendar, AlertTriangle, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -273,6 +275,12 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
             )}
           </CardContent>
         </Card>
+
+        {/* 달란트 포인트 */}
+        <TalentCard studentId={student.id} />
+
+        {/* 배지 */}
+        <BadgeCard studentId={student.id} />
 
         {/* 메모집 */}
         {user && (
