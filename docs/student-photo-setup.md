@@ -38,9 +38,15 @@ CREATE INDEX IF NOT EXISTS idx_students_photo_url ON students(photo_url) WHERE p
 
 **Storage → Policies → student-photos 버킷**
 
-#### 정책 1: 인증된 사용자는 업로드 가능
+다음 SQL을 **순서대로** 실행하세요 (기존 정책이 있으면 삭제 후 재생성):
 
 ```sql
+-- 기존 정책 삭제 (있는 경우)
+DROP POLICY IF EXISTS "Authenticated users can upload student photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public can view student photos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete student photos" ON storage.objects;
+
+-- 정책 1: 인증된 사용자는 업로드 가능
 CREATE POLICY "Authenticated users can upload student photos"
 ON storage.objects FOR INSERT
 TO authenticated
@@ -48,20 +54,14 @@ WITH CHECK (
   bucket_id = 'student-photos'
   AND (storage.foldername(name))[1] = 'students'
 );
-```
 
-#### 정책 2: 모든 사용자는 읽기 가능 (공개 버킷)
-
-```sql
+-- 정책 2: 모든 사용자는 읽기 가능 (공개 버킷)
 CREATE POLICY "Public can view student photos"
 ON storage.objects FOR SELECT
 TO public
 USING (bucket_id = 'student-photos');
-```
 
-#### 정책 3: 인증된 사용자는 삭제 가능
-
-```sql
+-- 정책 3: 인증된 사용자는 삭제 가능
 CREATE POLICY "Authenticated users can delete student photos"
 ON storage.objects FOR DELETE
 TO authenticated

@@ -43,9 +43,14 @@ ADD COLUMN IF NOT EXISTS photo_url TEXT;
 
 **해결 방법**:
 1. Supabase 대시보드 → **Storage** → **Policies** → `student-photos` 버킷
-2. 다음 정책 추가:
+2. 다음 SQL 실행 (기존 정책 삭제 후 재생성):
 
 ```sql
+-- 기존 정책 삭제 (있는 경우)
+DROP POLICY IF EXISTS "Authenticated users can upload student photos" ON storage.objects;
+DROP POLICY IF EXISTS "Public can view student photos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete student photos" ON storage.objects;
+
 -- 업로드 정책
 CREATE POLICY "Authenticated users can upload student photos"
 ON storage.objects FOR INSERT
