@@ -137,10 +137,10 @@ export async function createBadge(input: CreateBadgeInput): Promise<Badge> {
     is_active: input.is_active ?? true,
   };
 
-  const { data, error } = await supabase
-    .from('badges')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(insertData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('badges') as any)
+    .insert(insertData)
     .select()
     .single();
 
@@ -171,10 +171,10 @@ export async function updateBadge(badgeId: string, input: UpdateBadgeInput): Pro
   if (input.condition_value !== undefined) updateData.condition_value = input.condition_value;
   if (input.is_active !== undefined) updateData.is_active = input.is_active;
 
-  const { data, error } = await supabase
-    .from('badges')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(updateData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('badges') as any)
+    .update(updateData)
     .eq('id', badgeId)
     .select()
     .single();
@@ -195,9 +195,9 @@ export async function updateBadge(badgeId: string, input: UpdateBadgeInput): Pro
  * @param badgeId 배지 ID
  */
 export async function deleteBadge(badgeId: string): Promise<void> {
-  const { error } = await supabase
-    .from('badges')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase
+    .from('badges') as any)
     .delete()
     .eq('id', badgeId);
 
@@ -224,10 +224,10 @@ export async function awardBadgeToStudent(
     earned_at: earnedAt ?? new Date().toISOString().split('T')[0],
   };
 
-  const { data, error } = await supabase
-    .from('student_badges')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(insertData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('student_badges') as any)
+    .insert(insertData)
     .select()
     .single();
 

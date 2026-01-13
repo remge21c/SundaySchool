@@ -8,13 +8,21 @@ import type { Database } from '@/types/supabase';
 
 type TalentTransactionRow = Database['public']['Tables']['talent_transactions']['Row'];
 type TalentTransactionInsert = Database['public']['Tables']['talent_transactions']['Insert'];
-type TalentRuleRow = Database['public']['Tables']['talent_rules']['Row'];
-type TalentRuleInsert = Database['public']['Tables']['talent_rules']['Insert'];
-type TalentRuleUpdate = Database['public']['Tables']['talent_rules']['Update'];
 
 export interface TalentTransaction extends TalentTransactionRow {}
 
-export interface TalentRule extends TalentRuleRow {}
+// talent_rules 테이블 타입 (Supabase 타입이 아직 생성되지 않았을 수 있으므로 임시로 정의)
+export interface TalentRule {
+  id: string;
+  category: string;
+  amount: number;
+  description: string | null;
+  requires_approval: boolean;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
 
 export interface CreateTalentRuleInput {
   category: string;
@@ -107,16 +115,16 @@ export async function awardTalentByCategory(
   }
 
   // 달란트 거래 생성
-  const insertData: TalentTransactionInsert = {
+  const insertData = {
     student_id: studentId,
     amount: rule.amount,
     category: category,
   };
 
-  const { data, error } = await supabase
-    .from('talent_transactions')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(insertData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('talent_transactions') as any)
+    .insert(insertData)
     .select()
     .single();
 
@@ -174,7 +182,7 @@ export async function getActiveTalentRules(): Promise<TalentRule[]> {
  * @returns 생성된 달란트 규칙
  */
 export async function createTalentRule(input: CreateTalentRuleInput): Promise<TalentRule> {
-  const insertData: TalentRuleInsert = {
+  const insertData = {
     category: input.category,
     amount: input.amount,
     description: input.description ?? null,
@@ -183,10 +191,10 @@ export async function createTalentRule(input: CreateTalentRuleInput): Promise<Ta
     sort_order: input.sort_order ?? 0,
   };
 
-  const { data, error } = await supabase
-    .from('talent_rules')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .insert(insertData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('talent_rules') as any)
+    .insert(insertData)
     .select()
     .single();
 
@@ -211,7 +219,7 @@ export async function updateTalentRule(
   ruleId: string,
   input: UpdateTalentRuleInput
 ): Promise<TalentRule> {
-  const updateData: TalentRuleUpdate = {};
+  const updateData: any = {};
 
   if (input.category !== undefined) updateData.category = input.category;
   if (input.amount !== undefined) updateData.amount = input.amount;
@@ -220,10 +228,10 @@ export async function updateTalentRule(
   if (input.is_active !== undefined) updateData.is_active = input.is_active;
   if (input.sort_order !== undefined) updateData.sort_order = input.sort_order;
 
-  const { data, error } = await supabase
-    .from('talent_rules')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .update(updateData as any)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('talent_rules') as any)
+    .update(updateData)
     .eq('id', ruleId)
     .select()
     .single();
@@ -244,9 +252,9 @@ export async function updateTalentRule(
  * @param ruleId 규칙 ID
  */
 export async function deleteTalentRule(ruleId: string): Promise<void> {
-  const { error } = await supabase
-    .from('talent_rules')
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase
+    .from('talent_rules') as any)
     .delete()
     .eq('id', ruleId);
 
