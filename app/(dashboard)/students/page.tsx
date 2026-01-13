@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClassSidebar } from '@/components/class/ClassSidebar';
@@ -13,20 +13,27 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useStudentsByClass, useAllStudents } from '@/hooks/useStudents';
-import { useAllClasses } from '@/hooks/useClasses';
+import { useAllClasses, useClassesByTeacher } from '@/hooks/useClasses';
 import { StudentAddForm } from '@/components/student/StudentAddForm';
+import { useAuth } from '@/hooks/useAuth';
+import { getUserRole } from '@/lib/utils/auth';
 import { Search, UserPlus, Users, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
 export default function StudentsPage() {
   const router = useRouter();
+  const { user, loading: authLoading } = useAuth();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
+  const [isAutoSelected, setIsAutoSelected] = useState(false); // 자동 선택 여부 추적
 
   // 반 목록 조회
   const { data: classes } = useAllClasses();
+  
+  // 교사의 담당 반 조회
+  const { data: teacherClasses } = useClassesByTeacher(user?.id, undefined);
 
   // 선택된 반의 학생 목록 조회
   const { data: studentsByClass, isLoading: isLoadingByClass } = useStudentsByClass(
@@ -44,6 +51,24 @@ export default function StudentsPage() {
 
   // 선택된 반 정보
   const selectedClass = classes?.find((c) => c.id === selectedClassId);
+
+  // 교사가 로그인하고 담당 반이 있으면 자동 선택
+  useEffect(() => {
+    // 인증 로딩 중이거나 이미 자동 선택했으면 스킵
+    if (authLoading || isAutoSelected || !user) {
+      return;
+    }
+
+    // 사용자 역할 확인
+    getUserRole().then((role) => {
+      // 관리자가 아니고, 교사이며, 담당 반이 있고, 아직 반이 선택되지 않았으면
+      if (role !== 'admin' && role === 'teacher' && teacherClasses && teacherClasses.length > 0 && !selectedClassId) {
+        // 첫 번째 담당 반을 자동 선택
+        setSelectedClassId(teacherClasses[0].id);
+        setIsAutoSelected(true);
+      }
+    });
+  }, [user, authLoading, teacherClasses, selectedClassId, isAutoSelected]);
 
   const handleStudentClick = (studentId: string) => {
     router.push(`/students/${studentId}`);

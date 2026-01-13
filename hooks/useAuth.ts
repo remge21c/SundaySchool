@@ -93,8 +93,13 @@ export function useAuth(): UseAuthReturn {
       return error;
     }
 
-    setSession(data.session);
-    setUser(data.user);
+    // 세션과 사용자 정보를 즉시 업데이트
+    // onAuthStateChange가 발생하기 전에 상태를 업데이트하여 리다이렉트가 빠르게 작동하도록 함
+    if (data.session) {
+      setSession(data.session);
+      setUser(data.session.user);
+    }
+    
     return null;
   };
 

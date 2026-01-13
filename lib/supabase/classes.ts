@@ -93,6 +93,42 @@ export async function getClassById(classId: string): Promise<Class | null> {
 }
 
 /**
+ * 교사의 담당 반 조회
+ * @param teacherId 교사 ID
+ * @param year 연도 (선택)
+ * @returns 반 배열
+ */
+export async function getClassesByTeacher(
+  teacherId: string,
+  year?: number
+): Promise<Class[]> {
+  let query = supabase
+    .from('classes')
+    .select('*')
+    .eq('main_teacher_id', teacherId);
+
+  // 연도 필터
+  if (year) {
+    query = query.eq('year', year);
+  } else {
+    const currentYear = new Date().getFullYear();
+    query = query.eq('year', currentYear);
+  }
+
+  // 이름 순 정렬
+  query = query.order('name', { ascending: true });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (query as any);
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []) as Class[];
+}
+
+/**
  * 부서 목록 조회
  * @param year 연도 (선택)
  * @returns 부서명 배열

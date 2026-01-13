@@ -9,6 +9,7 @@ import {
   getAllClasses,
   getClassesByDepartment,
   getClassById,
+  getClassesByTeacher,
   getDepartments,
 } from '@/lib/supabase/classes';
 import type { Class } from '@/types/class';
@@ -55,6 +56,26 @@ export function useClass(classId: string | null | undefined) {
       return getClassById(classId);
     },
     enabled: !!classId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 교사의 담당 반 조회 훅
+ * @param teacherId 교사 ID
+ * @param year 연도 (선택)
+ */
+export function useClassesByTeacher(teacherId: string | null | undefined, year?: number) {
+  return useQuery({
+    queryKey: ['classes', 'teacher', teacherId, year],
+    queryFn: () => {
+      if (!teacherId) {
+        throw new Error('teacherId is required');
+      }
+      return getClassesByTeacher(teacherId, year);
+    },
+    enabled: !!teacherId, // teacherId가 있을 때만 쿼리 실행
     staleTime: 5 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   });

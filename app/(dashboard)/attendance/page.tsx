@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { ClassSidebar } from '@/components/class/ClassSidebar';
@@ -15,9 +15,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Calendar } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
-import { useClass } from '@/hooks/useClasses';
+import { useClass, useClassesByTeacher } from '@/hooks/useClasses';
+import { useAuth } from '@/hooks/useAuth';
+import { getUserRole } from '@/lib/utils/auth';
 
 export default function AttendancePage() {
+  const { user, loading: authLoading } = useAuth();
+  
   // 오늘 날짜를 기본값으로 사용
   const [selectedDate, setSelectedDate] = useState(() => {
     return format(new Date(), 'yyyy-MM-dd');
@@ -25,9 +29,31 @@ export default function AttendancePage() {
 
   // 선택된 반 ID
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [isAutoSelected, setIsAutoSelected] = useState(false); // 자동 선택 여부 추적
 
+  // 교사의 담당 반 조회
+  const { data: teacherClasses } = useClassesByTeacher(user?.id, undefined);
+  
   // 선택된 반 정보 조회
   const { data: selectedClass } = useClass(selectedClassId);
+
+  // 교사가 로그인하고 담당 반이 있으면 자동 선택
+  useEffect(() => {
+    // 인증 로딩 중이거나 이미 자동 선택했으면 스킵
+    if (authLoading || isAutoSelected || !user) {
+      return;
+    }
+
+    // 사용자 역할 확인
+    getUserRole().then((role) => {
+      // 관리자가 아니고, 교사이며, 담당 반이 있고, 아직 반이 선택되지 않았으면
+      if (role !== 'admin' && role === 'teacher' && teacherClasses && teacherClasses.length > 0 && !selectedClassId) {
+        // 첫 번째 담당 반을 자동 선택
+        setSelectedClassId(teacherClasses[0].id);
+        setIsAutoSelected(true);
+      }
+    });
+  }, [user, authLoading, teacherClasses, selectedClassId, isAutoSelected]);
 
   const formattedDate = format(new Date(selectedDate), 'yyyy년 M월 d일 (EEE)', {
     locale: ko,
