@@ -34,9 +34,6 @@ export default function DashboardPage() {
       />
 
       <div className="space-y-6">
-        {/* 주간 출석 통계 (맨 위) */}
-        <WeeklyAttendanceStats />
-
         {/* 빠른 액션 및 장기 결석 알림 */}
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
           {/* 빠른 액션 카드: 출석 체크 */}
@@ -103,8 +100,11 @@ export default function DashboardPage() {
           )}
         </div>
 
-        {/* 최근 심방 기록 (맨 아래) */}
-        <RecentVisitations />
+        {/* 전체 출석 통계 및 최근 심방 기록 (맨 아래) */}
+        <div className="space-y-6">
+          <WeeklyAttendanceStats />
+          <RecentVisitations />
+        </div>
       </div>
     </>
   );
