@@ -13,7 +13,6 @@ import {
   createClass,
   updateClass,
   deleteClass,
-  assignTeacherToClass,
 } from '@/lib/supabase/admin';
 import { getAllDepartments } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -114,14 +113,31 @@ export function ClassManagement() {
     },
   });
 
-  // 교사 배정
-  const assignTeacherMutation = useMutation({
-    mutationFn: ({ classId, teacherId }: { classId: string; teacherId: string | null }) =>
-      assignTeacherToClass(classId, teacherId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['classes'] });
-    },
+  // 각 교사가 배정된 반 ID 맵 생성 (한 교사는 한 반만 담당)
+  const teacherToClassMap = new Map<string, string>();
+  classes.forEach((cls) => {
+    if (cls.main_teacher_id) {
+      teacherToClassMap.set(cls.main_teacher_id, cls.id);
+    }
   });
+
+  // 교사가 이미 다른 반에 배정되어 있는지 확인
+  const isTeacherAssigned = (teacherId: string, currentClassId?: string) => {
+    const assignedClassId = teacherToClassMap.get(teacherId);
+    // 현재 수정 중인 반이면 배정 가능
+    if (currentClassId && assignedClassId === currentClassId) {
+      return false;
+    }
+    return !!assignedClassId;
+  };
+
+  // 교사가 배정된 반 이름 가져오기
+  const getAssignedClassName = (teacherId: string) => {
+    const assignedClassId = teacherToClassMap.get(teacherId);
+    if (!assignedClassId) return null;
+    const assignedClass = classes.find((cls) => cls.id === assignedClassId);
+    return assignedClass ? `${assignedClass.department} ${assignedClass.name}` : null;
+  };
 
   // 부서별 반 그룹화
   const classesByDepartment = classes.reduce((acc, cls) => {
@@ -159,6 +175,16 @@ export function ClassManagement() {
     const main_teacher_id_raw = formData.get('main_teacher_id') as string;
     const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
+    // 교사 배정 검증: 이미 다른 반에 배정된 교사인지 확인
+    if (main_teacher_id) {
+      const isAssigned = isTeacherAssigned(main_teacher_id);
+      if (isAssigned) {
+        const assignedClassName = getAssignedClassName(main_teacher_id);
+        alert(`이 교사는 이미 ${assignedClassName || '다른 반'}에 배정되어 있습니다.\n한 교사는 한 반만 담당할 수 있습니다.`);
+        return;
+      }
+    }
+
     createMutation.mutate({
       name,
       department,
@@ -177,6 +203,16 @@ export function ClassManagement() {
     const main_teacher_id_raw = formData.get('main_teacher_id') as string;
     const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
+    // 교사 배정 검증: 이미 다른 반에 배정된 교사인지 확인
+    if (main_teacher_id) {
+      const isAssigned = isTeacherAssigned(main_teacher_id, editingClass.id);
+      if (isAssigned) {
+        const assignedClassName = getAssignedClassName(main_teacher_id);
+        alert(`이 교사는 이미 ${assignedClassName || '다른 반'}에 배정되어 있습니다.\n한 교사는 한 반만 담당할 수 있습니다.`);
+        return;
+      }
+    }
+
     updateMutation.mutate({
       classId: editingClass.id,
       input: { name, department, main_teacher_id },
@@ -189,9 +225,6 @@ export function ClassManagement() {
     }
   };
 
-  const handleAssignTeacher = (classId: string, teacherId: string | null) => {
-    assignTeacherMutation.mutate({ classId, teacherId });
-  };
 
   if (classesLoading || teachersLoading || departmentsLoading) {
     return (
@@ -287,26 +320,9 @@ export function ClassManagement() {
                     담임: {getTeacherName(cls.main_teacher_id)}
                   </span>
                 </div>
-                <Select
-                  value={cls.main_teacher_id || 'unassigned'}
-                  onValueChange={(value) =>
-                    handleAssignTeacher(cls.id, value === 'unassigned' ? null : value)
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue>
-                      {getTeacherDisplayName(cls.main_teacher_id)}
-                    </SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">미배정</SelectItem>
-                    {teachers.map((teacher: Teacher) => (
-                      <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                <p className="text-xs text-muted-foreground">
+                  교사 배정은 수정 버튼을 클릭하여 변경할 수 있습니다.
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -354,13 +370,34 @@ export function ClassManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">미배정</SelectItem>
-                    {teachers.map((teacher: Teacher) => (
-                      <SelectItem key={teacher.id} value={teacher.id}>
-                        {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
-                      </SelectItem>
-                    ))}
+                    {teachers.map((teacher: Teacher) => {
+                      const isAssigned = isTeacherAssigned(teacher.id);
+                      const assignedClassName = getAssignedClassName(teacher.id);
+                      const teacherDisplayName = teacher.full_name
+                        ? `${teacher.full_name} (${teacher.email})`
+                        : teacher.email;
+                      
+                      return (
+                        <SelectItem
+                          key={teacher.id}
+                          value={teacher.id}
+                          disabled={isAssigned}
+                          className={isAssigned ? 'opacity-50 cursor-not-allowed' : ''}
+                        >
+                          {teacherDisplayName}
+                          {isAssigned && assignedClassName && (
+                            <span className="text-xs text-muted-foreground ml-2">
+                              (이미 {assignedClassName}에 배정됨)
+                            </span>
+                          )}
+                        </SelectItem>
+                      );
+                    })}
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">
+                  한 교사는 한 반만 담당할 수 있습니다. 이미 배정된 교사는 선택할 수 없습니다.
+                </p>
               </div>
             </div>
             <DialogFooter>
@@ -430,13 +467,34 @@ export function ClassManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">미배정</SelectItem>
-                      {teachers.map((teacher: Teacher) => (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email}
-                        </SelectItem>
-                      ))}
+                      {teachers.map((teacher: Teacher) => {
+                        const isAssigned = isTeacherAssigned(teacher.id, editingClass.id);
+                        const assignedClassName = getAssignedClassName(teacher.id);
+                        const teacherDisplayName = teacher.full_name
+                          ? `${teacher.full_name} (${teacher.email})`
+                          : teacher.email;
+                        
+                        return (
+                          <SelectItem
+                            key={teacher.id}
+                            value={teacher.id}
+                            disabled={isAssigned}
+                            className={isAssigned ? 'opacity-50 cursor-not-allowed' : ''}
+                          >
+                            {teacherDisplayName}
+                            {isAssigned && assignedClassName && (
+                              <span className="text-xs text-muted-foreground ml-2">
+                                (이미 {assignedClassName}에 배정됨)
+                              </span>
+                            )}
+                          </SelectItem>
+                        );
+                      })}
                     </SelectContent>
                   </Select>
+                  <p className="text-xs text-muted-foreground">
+                    한 교사는 한 반만 담당할 수 있습니다. 이미 배정된 교사는 선택할 수 없습니다.
+                  </p>
                 </div>
               </div>
               <DialogFooter>
