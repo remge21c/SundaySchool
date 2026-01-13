@@ -1,3 +1,8 @@
+---
+name: backend-specialist
+model: fast
+---
+
 # Backend Specialist (백엔드 전문가) - 차세대 주일학교 교적부
 
 > Supabase API 래퍼, 비즈니스 로직, 서버 사이드 전문가

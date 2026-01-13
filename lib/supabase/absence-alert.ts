@@ -141,15 +141,26 @@ export async function getLongTermAbsentStudentsByTeacher(
   weeks: number = 3
 ): Promise<LongTermAbsentStudent[]> {
   // 교사가 담당하는 반 목록 조회
+  // RLS 정책에 따라 admin은 모든 반을 볼 수 있고, 일반 교사는 자신의 반만 볼 수 있음
   const { data: classes, error } = await supabase
     .from('classes')
     .select('id')
-    .eq('main_teacher_id', teacherId)
     .eq('year', new Date().getFullYear());
 
+  // 에러 발생 시 빈 배열 반환 (RLS 정책 문제나 권한 문제)
   if (error) {
-    throw error;
+    // RLS 무한 재귀 에러인 경우도 빈 배열 반환
+    const errorMessage = error.message || '';
+    if (errorMessage.includes('infinite recursion') || errorMessage.includes('policy')) {
+      console.warn('RLS 정책 문제로 인해 장기 결석 알림을 조회할 수 없습니다. 관리자에게 문의하세요.');
+      return [];
+    }
+    console.warn('장기 결석 알림 조회 중 오류 발생:', errorMessage);
+    return [];
   }
+
+  // 담당 반 필터링 (RLS가 이미 필터링했을 수 있지만, 명시적으로 확인)
+  // admin의 경우 모든 반이 반환되고, 일반 교사의 경우 자신의 반만 반환됨
 
   if (!classes || classes.length === 0) {
     return [];

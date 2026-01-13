@@ -67,8 +67,15 @@ export function AbsenceAlertList({
 
         {isError && (
           <div className="text-center py-8 text-red-500">
-            오류가 발생했습니다.{' '}
-            {error instanceof Error ? error.message : '알 수 없는 오류'}
+            <AlertCircle className="h-8 w-8 mx-auto mb-2 text-red-400" />
+            <p className="font-medium">오류가 발생했습니다</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {error instanceof Error
+                ? error.message.includes('class_id 또는 teacher_id')
+                  ? '조회할 반 정보가 없습니다.'
+                  : error.message
+                : '알 수 없는 오류'}
+            </p>
           </div>
         )}
 

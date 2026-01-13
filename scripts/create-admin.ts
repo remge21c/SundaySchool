@@ -10,11 +10,24 @@
  */
 
 import { createClient } from '@supabase/supabase-js';
-import * as dotenv from 'dotenv';
+import * as fs from 'fs';
 import * as path from 'path';
 
-// .env.local 파일 로드
-dotenv.config({ path: path.join(process.cwd(), '.env.local') });
+// .env.local 파일 직접 읽기
+const envPath = path.join(process.cwd(), '.env.local');
+if (fs.existsSync(envPath)) {
+  const envFile = fs.readFileSync(envPath, 'utf-8');
+  envFile.split('\n').forEach((line) => {
+    const match = line.match(/^([^=:#]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      const value = match[2].trim().replace(/^["']|["']$/g, ''); // 따옴표 제거
+      if (!process.env[key]) {
+        process.env[key] = value;
+      }
+    }
+  });
+}
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -65,6 +78,8 @@ async function createAdminUser() {
       email_confirm: true, // 이메일 인증 자동 확인
     });
 
+    let userId: string;
+
     if (authError) {
       // 이미 존재하는 사용자인 경우
       if (authError.message.includes('already registered')) {
@@ -81,16 +96,18 @@ async function createAdminUser() {
           throw new Error('사용자를 찾을 수 없습니다.');
         }
         
-        authData.user = existingUser;
-        console.log(`   ✅ 기존 사용자 ID: ${existingUser.id}`);
+        userId = existingUser.id;
+        console.log(`   ✅ 기존 사용자 ID: ${userId}`);
       } else {
         throw authError;
       }
     } else {
-      console.log(`   ✅ 사용자 생성 완료: ${authData.user.id}`);
+      if (!authData?.user) {
+        throw new Error('사용자 생성에 실패했습니다.');
+      }
+      userId = authData.user.id;
+      console.log(`   ✅ 사용자 생성 완료: ${userId}`);
     }
-
-    const userId = authData.user.id;
 
     // 2. 프로필 생성 (profiles 테이블)
     console.log('\n2️⃣  profiles 테이블에 프로필 생성 중...');

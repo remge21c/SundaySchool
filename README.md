@@ -147,6 +147,29 @@ npm run lint
 npm run format
 ```
 
+## 배포 및 운영
+
+### 빠른 시작
+
+1. **[배포 체크리스트](./docs/deployment-checklist.md)** - 배포 전 확인 사항
+2. **[간단 배포 가이드](./docs/deployment-guide-simple.md)** - 현재 Supabase 프로젝트 사용 시 (파일럿 단계 권장)
+3. **[배포 가이드](./docs/deployment-guide.md)** - 프로덕션 환경 배포 방법 (상세)
+
+### 사용자 가이드
+
+- [관리자 매뉴얼](./docs/admin-manual.md) - 시스템 관리자용
+- [교사용 사용 가이드](./docs/user-guide.md) - 교사용
+- [데이터 마이그레이션 가이드](./docs/data-migration-guide.md) - 기존 데이터 입력 방법
+
+### 환경 변수 설정
+
+`.env.local` 파일을 생성하기 전에 `.env.example` 파일을 참조하세요:
+
+```bash
+cp .env.example .env.local
+# .env.local 파일을 열어 실제 값으로 수정
+```
+
 ## 라이선스
 
 ISC

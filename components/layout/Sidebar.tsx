@@ -80,11 +80,11 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
 
           {/* 네비게이션 아이템 */}
           <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item) => {
+            {navItems.map((item, index) => {
               const isActive = currentPath === item.path;
               return (
                 <button
-                  key={item.path}
+                  key={`${item.path}-${item.label}-${index}`}
                   onClick={() => handleNavClick(item.path)}
                   className={cn(
                     'w-full flex items-center justify-between gap-3 px-4 py-3 rounded-lg text-left transition-colors',
