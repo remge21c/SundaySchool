@@ -13,9 +13,11 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { VisitationTimeline } from '@/components/visitation/VisitationTimeline';
 import { VisitationForm } from '@/components/visitation/VisitationForm';
 import { StudentPhotoUpload } from './StudentPhotoUpload';
-import { User, Phone, MapPin, School, Calendar, AlertTriangle } from 'lucide-react';
+import { User, Phone, MapPin, School, Calendar, AlertTriangle, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
+import { Button } from '@/components/ui/button';
+import { useState } from 'react';
 
 interface StudentProfileProps {
   studentId: string;
@@ -24,6 +26,17 @@ interface StudentProfileProps {
 export function StudentProfile({ studentId }: StudentProfileProps) {
   const { data: student, isLoading, error } = useStudentProfile(studentId);
   const { user } = useAuth();
+  const [isEditMode, setIsEditMode] = useState(false);
+
+  /**
+   * 학생 정보 수정 버튼 클릭 핸들러
+   * 향후 학생 정보 수정 기능이 구현되면 이 함수를 수정하여 연결
+   */
+  const handleEditClick = () => {
+    // TODO: 학생 정보 수정 기능 구현 시 연결
+    // 예: setIsEditMode(true) 또는 수정 모달/페이지로 이동
+    alert('학생 정보 수정 기능은 곧 제공될 예정입니다.');
+  };
 
   if (isLoading) {
     return (
@@ -83,11 +96,24 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
         {/* 기본 정보 */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <User className="h-5 w-5" />
-              기본 정보
-            </CardTitle>
-            <CardDescription>학생의 기본 정보입니다</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <User className="h-5 w-5" />
+                  기본 정보
+                </CardTitle>
+                <CardDescription>학생의 기본 정보입니다</CardDescription>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleEditClick}
+                className="flex items-center gap-2"
+              >
+                <Edit className="h-4 w-4" />
+                정보 수정
+              </Button>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             {/* 학생 사진 */}
