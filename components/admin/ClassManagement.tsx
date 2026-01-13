@@ -512,6 +512,10 @@ function ClassCard({
     queryKey: ['class-teachers', cls.id],
     queryFn: () => getClassTeachers(cls.id),
     staleTime: 5 * 60 * 1000,
+    retry: false, // 404 오류는 재시도하지 않음
+    onError: () => {
+      // 에러 발생 시 빈 배열로 처리 (테이블이 아직 생성되지 않은 경우)
+    },
   });
 
   const mainTeacherName = getTeacherName(cls.main_teacher_id);

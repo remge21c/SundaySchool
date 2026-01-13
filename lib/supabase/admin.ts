@@ -126,7 +126,13 @@ export async function getClassTeachers(classId: string): Promise<string[]> {
     .select('teacher_id')
     .eq('class_id', classId));
 
+  // 테이블이 아직 생성되지 않았거나 404 오류인 경우 빈 배열 반환
   if (error) {
+    // 404 오류 (테이블이 없음) 또는 PGRST116 (레코드 없음)인 경우 빈 배열 반환
+    if (error.code === 'PGRST116' || error.message?.includes('404') || error.message?.includes('relation') || error.message?.includes('does not exist')) {
+      return [];
+    }
+    // 다른 오류는 그대로 throw
     throw error;
   }
 
