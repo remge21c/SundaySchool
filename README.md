@@ -10,7 +10,7 @@
 
 - **Frontend**: Next.js 15 (App Router), TypeScript, Tailwind CSS, Shadcn/UI
 - **Backend**: Supabase (PostgreSQL, Auth, Realtime)
-- **State Management**: TanStack Query (Server), Zustand (Client)
+- **State Management**: TanStack Query (Server)
 - **Testing**: Vitest, React Testing Library, Playwright
 
 ## 시작하기
