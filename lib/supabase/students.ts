@@ -176,6 +176,27 @@ export async function updateStudent(
 }
 
 /**
+ * 학생 알레르기 정보 업데이트
+ * @param studentId 학생 ID
+ * @param allergies 알레르기 정보
+ * @returns 업데이트된 학생 정보
+ */
+export async function updateStudentAllergies(
+  studentId: string,
+  allergies: { food?: string[]; medicine?: string[]; other?: string }
+): Promise<Student> {
+  // 모든 항목이 비어있으면 null로 저장
+  const allergiesData =
+    (!allergies.food || allergies.food.length === 0) &&
+    (!allergies.medicine || allergies.medicine.length === 0) &&
+    !allergies.other
+      ? null
+      : allergies;
+
+  return await updateStudent(studentId, { allergies: allergiesData as any } as StudentUpdate);
+}
+
+/**
  * 학생 사진 URL 업데이트
  * @param studentId 학생 ID
  * @param photoUrl 사진 URL

@@ -14,6 +14,9 @@ import { PageHeader } from '@/components/layout/PageHeader';
 import { VisitationTimeline } from '@/components/visitation/VisitationTimeline';
 import { VisitationForm } from '@/components/visitation/VisitationForm';
 import { StudentPhotoUpload } from './StudentPhotoUpload';
+import { AllergyEditForm } from './AllergyEditForm';
+import { NoteForm } from './NoteForm';
+import { NoteTimeline } from './NoteTimeline';
 import { User, Phone, MapPin, School, Calendar, AlertTriangle, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -29,6 +32,7 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
   const { data: student, isLoading, error } = useStudentProfile(studentId);
   const { user } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [isAllergyEditModalOpen, setIsAllergyEditModalOpen] = useState(false);
   
   // 반 정보 조회
   const { data: classInfo } = useClass(student?.class_id);
@@ -193,71 +197,89 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
         </Card>
 
         {/* 알레르기 정보 */}
-        {allergies && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-600" />
-                알레르기 정보
-              </CardTitle>
-              <CardDescription>주의가 필요한 알레르기 정보입니다</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {allergies.food && allergies.food.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">음식 알레르기</label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {allergies.food.map((item, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm"
-                      >
-                        {item}
-                      </span>
-                    ))}
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <AlertTriangle className="h-5 w-5 text-amber-600" />
+                  알레르기 정보
+                </CardTitle>
+                <CardDescription>주의가 필요한 알레르기 정보입니다</CardDescription>
+              </div>
+              {user && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsAllergyEditModalOpen(true)}
+                  className="flex items-center gap-2"
+                >
+                  <Edit className="h-4 w-4" />
+                  수정
+                </Button>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {allergies ? (
+              <>
+                {allergies.food && allergies.food.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">음식 알레르기</label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {allergies.food.map((item, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-sm"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {allergies.medicine && allergies.medicine.length > 0 && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">약물 알레르기</label>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {allergies.medicine.map((item, index) => (
-                      <span
-                        key={index}
-                        className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm"
-                      >
-                        {item}
-                      </span>
-                    ))}
+                {allergies.medicine && allergies.medicine.length > 0 && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">약물 알레르기</label>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {allergies.medicine.map((item, index) => (
+                        <span
+                          key={index}
+                          className="px-3 py-1 bg-orange-100 text-orange-700 rounded-full text-sm"
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {allergies.other && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">기타 알레르기</label>
-                  <p className="mt-2 text-base text-gray-700">{allergies.other}</p>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )}
+                {allergies.other && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-500">기타 알레르기</label>
+                    <p className="mt-2 text-base text-gray-700">{allergies.other}</p>
+                  </div>
+                )}
 
-        {/* 알레르기 정보가 없는 경우 */}
-        {!allergies && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-gray-400" />
-                알레르기 정보
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+                {(!allergies.food || allergies.food.length === 0) &&
+                  (!allergies.medicine || allergies.medicine.length === 0) &&
+                  !allergies.other && (
+                    <p className="text-gray-500">등록된 알레르기 정보가 없습니다.</p>
+                  )}
+              </>
+            ) : (
               <p className="text-gray-500">등록된 알레르기 정보가 없습니다.</p>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* 메모집 */}
+        {user && (
+          <>
+            <NoteForm studentId={student.id} />
+            <NoteTimeline studentId={student.id} />
+          </>
         )}
 
         {/* 심방 기록 작성 폼 */}
@@ -290,14 +312,24 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
 
       {/* 학생 정보 수정 모달 */}
       {student && (
-        <StudentEditForm
-          student={student}
-          open={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          onSuccess={() => {
-            setIsEditModalOpen(false);
-          }}
-        />
+        <>
+          <StudentEditForm
+            student={student}
+            open={isEditModalOpen}
+            onClose={() => setIsEditModalOpen(false)}
+            onSuccess={() => {
+              setIsEditModalOpen(false);
+            }}
+          />
+          <AllergyEditForm
+            student={student}
+            open={isAllergyEditModalOpen}
+            onClose={() => setIsAllergyEditModalOpen(false)}
+            onSuccess={() => {
+              setIsAllergyEditModalOpen(false);
+            }}
+          />
+        </>
       )}
     </Container>
   );

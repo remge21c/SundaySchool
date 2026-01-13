@@ -207,6 +207,35 @@ export interface Database {
           created_at?: string;
         };
       };
+      student_notes: {
+        Row: {
+          id: string;
+          student_id: string;
+          teacher_id: string;
+          note_date: string;
+          content: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          teacher_id: string;
+          note_date: string;
+          content: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          teacher_id?: string;
+          note_date?: string;
+          content?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
