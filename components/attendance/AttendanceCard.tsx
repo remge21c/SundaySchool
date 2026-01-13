@@ -5,9 +5,10 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { upsertAttendanceLog, getAttendanceLogByStudentAndDate } from '@/lib/supabase/attendance';
+import { getCurrentWeekRange } from '@/lib/utils/date';
 import { Card } from '@/components/ui/card';
 import { AbsenceReasonModal } from './AbsenceReasonModal';
 import type { Student } from '@/types/student';
@@ -93,10 +94,16 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
   const queryClient = useQueryClient();
   const [isAbsenceModalOpen, setIsAbsenceModalOpen] = useState(false);
 
-  // 출석 기록 조회
+  // 이번주 일요일 날짜로 변환 (출석체크는 항상 이번주 일요일 날짜로 저장)
+  const weekSundayDate = useMemo(() => {
+    const weekRange = getCurrentWeekRange(new Date(date));
+    return weekRange.startDate;
+  }, [date]);
+
+  // 출석 기록 조회 (이번주 일요일 날짜로 조회)
   const { data: attendance, isLoading } = useQuery({
-    queryKey: ['attendance', student.id, date],
-    queryFn: () => getAttendanceLogByStudentAndDate(student.id, date),
+    queryKey: ['attendance', student.id, weekSundayDate],
+    queryFn: () => getAttendanceLogByStudentAndDate(student.id, weekSundayDate),
     staleTime: 30 * 1000, // 30초간 fresh 상태 유지
   });
 
@@ -109,10 +116,11 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
       status: AttendanceStatus;
       reason?: string | null;
     }) => {
+      // 이번주 일요일 날짜로 저장
       return upsertAttendanceLog({
         student_id: student.id,
         class_id: classId,
-        date,
+        date: weekSundayDate,
         status,
         reason: reason ?? null,
       });
@@ -120,13 +128,13 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
     // Optimistic Update: 서버 응답 전에 UI 업데이트
     onMutate: async (newStatus) => {
       // 진행 중인 쿼리 취소
-      await queryClient.cancelQueries({ queryKey: ['attendance', student.id, date] });
+      await queryClient.cancelQueries({ queryKey: ['attendance', student.id, weekSundayDate] });
 
       // 이전 값 저장 (롤백용)
-      const previousAttendance = queryClient.getQueryData(['attendance', student.id, date]);
+      const previousAttendance = queryClient.getQueryData(['attendance', student.id, weekSundayDate]);
 
       // Optimistic Update
-      queryClient.setQueryData(['attendance', student.id, date], (old: any) => {
+      queryClient.setQueryData(['attendance', student.id, weekSundayDate], (old: any) => {
         if (old) {
           return {
             ...old,
@@ -138,7 +146,7 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
           id: `temp-${Date.now()}`,
           student_id: student.id,
           class_id: classId,
-          date,
+          date: weekSundayDate,
           status: newStatus.status,
           reason: newStatus.reason ?? null,
           created_at: new Date().toISOString(),
@@ -151,17 +159,20 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
     onError: (err, newStatus, context) => {
       if (context?.previousAttendance) {
         queryClient.setQueryData(
-          ['attendance', student.id, date],
+          ['attendance', student.id, weekSundayDate],
           context.previousAttendance
         );
       }
     },
     // 성공 시 쿼리 무효화하여 서버 데이터로 갱신
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['attendance', student.id, date] });
-      queryClient.invalidateQueries({ queryKey: ['attendance', 'class', classId, date] });
-      // 출석 통계도 무효화하여 실시간 업데이트
+      queryClient.invalidateQueries({ queryKey: ['attendance', student.id, weekSundayDate] });
+      queryClient.invalidateQueries({ queryKey: ['attendance', 'class', classId, weekSundayDate] });
+      // 출석 통계도 무효화하여 실시간 업데이트 (원래 선택한 날짜로도 무효화하여 통계가 정상 동작하도록)
       queryClient.invalidateQueries({ queryKey: ['attendance-stats', classId, date] });
+      // 달란트 거래 내역도 무효화
+      queryClient.invalidateQueries({ queryKey: ['talent-transactions', student.id] });
+      queryClient.invalidateQueries({ queryKey: ['talent-balance', student.id] });
     },
   });
 
