@@ -12,7 +12,7 @@ import { Card } from '@/components/ui/card';
 import { AbsenceReasonModal } from './AbsenceReasonModal';
 import type { Student } from '@/types/student';
 import type { AttendanceStatus } from '@/types/attendance';
-import { Check, X, Clock } from 'lucide-react';
+import { Check, X, Clock, User } from 'lucide-react';
 
 interface AttendanceCardProps {
   student: Student;
@@ -224,6 +224,20 @@ export function AttendanceCard({ student, date, classId }: AttendanceCardProps) 
     >
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* 프로필 사진 */}
+          <div className="flex-shrink-0">
+            {student.photo_url ? (
+              <img
+                src={student.photo_url}
+                alt={student.name}
+                className="w-12 h-12 rounded-full object-cover border-2 border-gray-200"
+              />
+            ) : (
+              <div className="w-12 h-12 rounded-full bg-gray-100 border-2 border-gray-200 flex items-center justify-center">
+                <User className="h-6 w-6 text-gray-400" />
+              </div>
+            )}
+          </div>
           {getStatusIcon(currentStatus)}
           <div>
             <div className="font-semibold text-base">{student.name}</div>
