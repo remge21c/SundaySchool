@@ -9,14 +9,16 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
 /**
- * 로그인 폼 컴포넌트
+ * 회원가입 폼 컴포넌트
  */
-export function LoginForm() {
+export function SignupForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullName, setFullName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const { signIn, isAuthenticated, loading } = useAuth();
+  const { signUp, isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
   // 이미 인증된 경우 대시보드로 리다이렉트
@@ -57,34 +59,40 @@ export function LoginForm() {
       return;
     }
 
+    // 비밀번호 확인 검증
+    if (password !== confirmPassword) {
+      setError('비밀번호가 일치하지 않습니다.');
+      return;
+    }
+
+    // 이름 검증
+    if (fullName.trim().length === 0) {
+      setError('이름을 입력해주세요.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
-      const error = await signIn(email, password);
+      const error = await signUp(email, password, fullName.trim());
 
       if (error) {
-        // Supabase 에러 메시지를 더 친화적으로 변환
-        let errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        
-        if (error.message) {
-          if (error.message.includes('Invalid login credentials')) {
-            errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-          } else if (error.message.includes('Email not confirmed')) {
-            errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.';
-          } else if (error.message.includes('User not found')) {
-            errorMessage = '등록되지 않은 이메일입니다. 회원가입을 먼저 진행해주세요.';
-          } else {
-            errorMessage = error.message;
-          }
-        }
-        
-        setError(errorMessage);
+        setError(error.message || '회원가입 중 오류가 발생했습니다.');
       } else {
-        // 로그인 성공 시 대시보드로 리다이렉트
-        router.push('/dashboard');
+        // 회원가입 성공 시 세션 확인
+        // 이메일 인증이 필요한 경우 세션이 없을 수 있음
+        if (isAuthenticated) {
+          // 자동 로그인된 경우 대시보드로 리다이렉트
+          router.push('/dashboard');
+        } else {
+          // 이메일 인증이 필요한 경우 안내 메시지 표시
+          setError(null);
+          alert('회원가입이 완료되었습니다!\n\n이메일 인증이 필요한 경우, 이메일을 확인해주세요.\n이메일 인증 후 로그인해주세요.');
+          router.push('/login');
+        }
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다.');
+      setError(err instanceof Error ? err.message : '회원가입 중 오류가 발생했습니다.');
     } finally {
       setIsSubmitting(false);
     }
@@ -93,9 +101,9 @@ export function LoginForm() {
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle className="text-2xl">로그인</CardTitle>
+        <CardTitle className="text-2xl">교사 회원가입</CardTitle>
         <CardDescription>
-          이메일과 비밀번호를 입력하여 로그인하세요.
+          이메일과 비밀번호를 입력하여 회원가입하세요.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -123,12 +131,46 @@ export function LoginForm() {
             <Input
               id="password"
               type="password"
-              placeholder="비밀번호를 입력하세요"
+              placeholder="비밀번호를 입력하세요 (6자 이상)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isSubmitting}
-              autoComplete="current-password"
+              autoComplete="new-password"
+              minLength={6}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="confirmPassword" className="text-sm font-medium">
+              비밀번호 확인
+            </label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="비밀번호를 다시 입력하세요"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              disabled={isSubmitting}
+              autoComplete="new-password"
+              minLength={6}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="fullName" className="text-sm font-medium">
+              이름
+            </label>
+            <Input
+              id="fullName"
+              type="text"
+              placeholder="이름을 입력하세요"
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              required
+              disabled={isSubmitting}
+              autoComplete="name"
             />
           </div>
 
@@ -143,13 +185,13 @@ export function LoginForm() {
             className="w-full"
             disabled={isSubmitting}
           >
-            {isSubmitting ? '로그인 중...' : '로그인'}
+            {isSubmitting ? '회원가입 중...' : '회원가입'}
           </Button>
 
           <div className="text-center text-sm text-muted-foreground">
-            계정이 없으신가요?{' '}
-            <Link href="/signup" className="text-primary hover:underline">
-              회원가입
+            이미 계정이 있으신가요?{' '}
+            <Link href="/login" className="text-primary hover:underline">
+              로그인
             </Link>
           </div>
         </form>

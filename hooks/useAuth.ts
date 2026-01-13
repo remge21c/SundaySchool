@@ -13,6 +13,7 @@ interface AuthState {
 
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<any>;
+  signUp: (email: string, password: string, fullName: string) => Promise<any>;
   signOut: () => Promise<void>;
 }
 
@@ -67,6 +68,28 @@ export function useAuth(): UseAuthReturn {
   };
 
   /**
+   * 회원가입
+   */
+  const signUp = async (email: string, password: string, fullName: string) => {
+    const { signUp: signUpApi } = await import('@/lib/supabase/auth');
+    const result = await signUpApi(email, password, fullName);
+
+    if (result.error) {
+      return result.error;
+    }
+
+    // 회원가입 성공 시 세션 확인
+    // 이메일 인증이 활성화된 경우 세션이 없을 수 있음
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) {
+      setSession(session);
+      setUser(session.user);
+    }
+    // 세션이 없어도 회원가입은 성공한 것으로 간주
+    return null;
+  };
+
+  /**
    * 로그아웃
    */
   const signOut = async () => {
@@ -81,6 +104,7 @@ export function useAuth(): UseAuthReturn {
     loading,
     isAuthenticated: !!user,
     signIn,
+    signUp,
     signOut,
   };
 }

@@ -1,32 +1,9 @@
 /**
- * Supabase 인증 유틸리티 함수
- * 서버 컴포넌트와 클라이언트 컴포넌트 모두에서 사용 가능한 헬퍼 함수
+ * Supabase 인증 유틸리티 함수 (클라이언트 전용)
+ * 클라이언트 컴포넌트에서 사용 가능한 헬퍼 함수
  */
 
-import { createClient } from './server';
 import { supabase } from './client';
-
-/**
- * 서버 사이드: 현재 사용자 세션 가져오기
- */
-export async function getServerSession() {
-  const supabaseClient = await createClient();
-  const {
-    data: { session },
-  } = await supabaseClient.auth.getSession();
-  return session;
-}
-
-/**
- * 서버 사이드: 현재 사용자 정보 가져오기
- */
-export async function getServerUser() {
-  const supabaseClient = await createClient();
-  const {
-    data: { user },
-  } = await supabaseClient.auth.getUser();
-  return user;
-}
 
 /**
  * 클라이언트 사이드: 현재 사용자 세션 가져오기
@@ -46,4 +23,51 @@ export async function getClientUser() {
     data: { user },
   } = await supabase.auth.getUser();
   return user;
+}
+
+/**
+ * 회원가입
+ * @param email 이메일 주소
+ * @param password 비밀번호
+ * @param fullName 이름
+ * @returns 성공 시 null, 실패 시 에러 객체
+ */
+export async function signUp(
+  email: string,
+  password: string,
+  fullName: string
+): Promise<{ error: any } | { error: null }> {
+  // 1. Supabase Auth에 사용자 생성
+  const { data: authData, error: authError } = await supabase.auth.signUp({
+    email,
+    password,
+    options: {
+      data: {
+        full_name: fullName,
+      },
+    },
+  });
+
+  if (authError) {
+    return { error: authError };
+  }
+
+  // 2. 프로필 업데이트 (트리거로 자동 생성된 프로필에 full_name 추가)
+  if (authData.user) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: profileError } = await ((supabase
+      .from('profiles') as any)
+      .update({
+        full_name: fullName,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', authData.user.id));
+
+    if (profileError) {
+      // 프로필 업데이트 실패해도 사용자는 생성되었으므로 경고만
+      console.warn('프로필 업데이트 실패:', profileError);
+    }
+  }
+
+  return { error: null };
 }

@@ -1,3 +1,8 @@
+---
+name: test-specialist
+model: fast
+---
+
 # Test Specialist (테스트 전문가) - 차세대 주일학교 교적부
 
 > Contract-First TDD, 테스트 작성, Mock 생성, 품질 검증 전문가
