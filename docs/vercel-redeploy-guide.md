@@ -29,12 +29,17 @@ Vercel이 이전 커밋(`b265c92`)을 빌드하고 있어 최신 수정사항(`f
 4. **Use existing Build Cache** 체크 해제
 5. **Redeploy** 클릭
 
-### 방법 3: 빌드 캐시 삭제 후 재배포
+### 방법 3: 수동 재배포 (권장)
 
-1. **Settings** → **Build & Development Settings**
-2. **Clear Build Cache** 버튼 클릭
-3. **Deployments** 탭으로 돌아가기
-4. 최신 배포 **Redeploy**
+**참고**: Vercel UI 변경으로 "Clear Build Cache" 옵션이 더 이상 제공되지 않을 수 있습니다. 대신 수동 재배포를 사용하세요.
+
+1. **Deployments** 탭으로 이동
+2. 최신 배포 항목의 **"..."** (점 3개) 메뉴 클릭
+3. **"Redeploy"** 선택
+4. **"Use existing Build Cache"** 체크 해제 (중요!)
+5. **"Redeploy"** 버튼 클릭
+
+**참고**: Vercel은 최신 코드로 자동 재빌드하므로 빌드 캐시가 자동으로 갱신됩니다.
 
 ### 방법 4: GitHub에서 재트리거
 
