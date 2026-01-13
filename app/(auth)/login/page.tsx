@@ -1,33 +1,24 @@
 'use client';
 
-import { useAuth } from '@/hooks/useAuth';
-import { LoginForm } from '@/components/auth/LoginForm';
-import { Container } from '@/components/layout/Container';
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 
 /**
- * 로그인 페이지
+ * 로그인 페이지 - 메인 페이지로 리다이렉트
  */
 export default function LoginPage() {
-  const { loading } = useAuth();
+  const router = useRouter();
 
-  // 로딩 중일 때
-  if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-muted-foreground">로딩 중...</p>
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    // 메인 페이지로 리다이렉트
+    router.replace('/');
+  }, [router]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <Container>
-        <div className="flex justify-center">
-          <LoginForm />
-        </div>
-      </Container>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="text-center">
+        <p className="text-muted-foreground">리다이렉트 중...</p>
+      </div>
     </div>
   );
 }

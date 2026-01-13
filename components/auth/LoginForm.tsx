@@ -145,13 +145,6 @@ export function LoginForm() {
           >
             {isSubmitting ? '로그인 중...' : '로그인'}
           </Button>
-
-          <div className="text-center text-sm text-muted-foreground">
-            계정이 없으신가요?{' '}
-            <Link href="/signup" className="text-primary hover:underline">
-              회원가입
-            </Link>
-          </div>
         </form>
       </CardContent>
     </Card>
