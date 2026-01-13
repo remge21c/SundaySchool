@@ -136,7 +136,8 @@ export function ClassManagement() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const department = formData.get('department') as string;
-    const main_teacher_id = (formData.get('main_teacher_id') as string) || null;
+    const main_teacher_id_raw = formData.get('main_teacher_id') as string;
+    const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
     createMutation.mutate({
       name,
@@ -153,7 +154,8 @@ export function ClassManagement() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const department = formData.get('department') as string;
-    const main_teacher_id = (formData.get('main_teacher_id') as string) || null;
+    const main_teacher_id_raw = formData.get('main_teacher_id') as string;
+    const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
     updateMutation.mutate({
       classId: editingClass.id,
@@ -203,12 +205,15 @@ export function ClassManagement() {
     <div className="space-y-6">
       {/* 필터 및 생성 버튼 */}
       <div className="flex items-center justify-between">
-        <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+        <Select
+          value={selectedDepartment || 'all'}
+          onValueChange={(value) => setSelectedDepartment(value === 'all' ? '' : value)}
+        >
           <SelectTrigger className="w-48">
             <SelectValue placeholder="부서 선택" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="">전체</SelectItem>
+            <SelectItem value="all">전체</SelectItem>
             {DEPARTMENTS.map((dept) => (
               <SelectItem key={dept} value={dept}>
                 {dept}
@@ -260,16 +265,16 @@ export function ClassManagement() {
                   </span>
                 </div>
                 <Select
-                  value={cls.main_teacher_id || ''}
+                  value={cls.main_teacher_id || 'unassigned'}
                   onValueChange={(value) =>
-                    handleAssignTeacher(cls.id, value || null)
+                    handleAssignTeacher(cls.id, value === 'unassigned' ? null : value)
                   }
                 >
                   <SelectTrigger>
                     <SelectValue placeholder="교사 배정" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">미배정</SelectItem>
+                    <SelectItem value="unassigned">미배정</SelectItem>
                     {teachers.map((teacher: Teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id}>
                         {teacher.full_name || teacher.email}
@@ -318,12 +323,12 @@ export function ClassManagement() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="main_teacher_id">담임 교사 (선택)</Label>
-                <Select name="main_teacher_id">
+                <Select name="main_teacher_id" defaultValue="unassigned">
                   <SelectTrigger>
                     <SelectValue placeholder="교사 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">미배정</SelectItem>
+                    <SelectItem value="unassigned">미배정</SelectItem>
                     {teachers.map((teacher: Teacher) => (
                       <SelectItem key={teacher.id} value={teacher.id}>
                         {teacher.full_name || teacher.email}
@@ -391,13 +396,13 @@ export function ClassManagement() {
                   <Label htmlFor="edit-main_teacher_id">담임 교사</Label>
                   <Select
                     name="main_teacher_id"
-                    defaultValue={editingClass.main_teacher_id || ''}
+                    defaultValue={editingClass.main_teacher_id || 'unassigned'}
                   >
                     <SelectTrigger>
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">미배정</SelectItem>
+                      <SelectItem value="unassigned">미배정</SelectItem>
                       {teachers.map((teacher: Teacher) => (
                         <SelectItem key={teacher.id} value={teacher.id}>
                           {teacher.full_name || teacher.email}
