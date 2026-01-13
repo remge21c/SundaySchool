@@ -291,9 +291,6 @@ export function ClassManagement() {
                     담임: {getTeacherName(cls.main_teacher_id)}
                   </span>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  교사 배정은 수정 버튼을 클릭하여 변경할 수 있습니다.
-                </p>
               </div>
             </CardContent>
           </Card>
