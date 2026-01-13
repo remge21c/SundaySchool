@@ -45,7 +45,7 @@ export function ClassSidebar({
       <div
         className={cn(
           // 모바일: 오버레이 + 슬라이드
-          'md:sticky md:top-16',
+          'md:sticky md:top-16 md:z-20',
           'fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg',
           'transform transition-transform duration-300 ease-in-out',
           isOpen ? 'translate-x-0' : '-translate-x-full',
