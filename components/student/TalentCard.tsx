@@ -13,6 +13,7 @@ import { Coins, TrendingUp, Plus } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
+import { getCurrentWeekRange } from '@/lib/utils/date';
 import { getUserRole } from '@/lib/utils/auth';
 import { useState, useEffect } from 'react';
 import {
@@ -150,23 +151,31 @@ export function TalentCard({ studentId }: TalentCardProps) {
               <p className="text-sm text-gray-500">로딩 중...</p>
             ) : transactions.length > 0 ? (
               <div className="space-y-2">
-                {transactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-2 rounded text-sm bg-gray-50"
-                  >
-                    <div>
-                      <p className="font-medium">{transaction.category}</p>
-                      <p className="text-xs text-gray-500">
-                        {format(new Date(transaction.created_at), 'yyyy년 M월 d일', { locale: ko })}
+                {transactions.map((transaction) => {
+                  // 출석 항목인 경우 이번주 일요일 날짜로 표시
+                  const displayDate =
+                    transaction.category === '출석'
+                      ? new Date(getCurrentWeekRange().startDate)
+                      : new Date(transaction.created_at);
+
+                  return (
+                    <div
+                      key={transaction.id}
+                      className="flex items-center justify-between p-2 rounded text-sm bg-gray-50"
+                    >
+                      <div>
+                        <p className="font-medium">{transaction.category}</p>
+                        <p className="text-xs text-gray-500">
+                          {format(displayDate, 'yyyy년 M월 d일', { locale: ko })}
+                        </p>
+                      </div>
+                      <p className={`font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        {transaction.amount > 0 ? '+' : ''}
+                        {transaction.amount.toLocaleString()}
                       </p>
                     </div>
-                    <p className={`font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.amount > 0 ? '+' : ''}
-                      {transaction.amount.toLocaleString()}
-                    </p>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-500">거래 내역이 없습니다.</p>
