@@ -327,7 +327,7 @@ export function DepartmentManagement() {
           <DialogHeader>
             <DialogTitle>부서 삭제 확인</DialogTitle>
             <DialogDescription>
-              정말로 "{deletingDepartment?.name}" 부서를 삭제하시겠습니까?
+              정말로 &quot;{deletingDepartment?.name}&quot; 부서를 삭제하시겠습니까?
               <br />
               <br />
               삭제된 부서는 비활성화되며, 해당 부서의 반들은 그대로 유지됩니다.
