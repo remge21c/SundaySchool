@@ -7,6 +7,9 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { getTalentBalance, getTalentTransactions, getActiveTalentRules, awardTalentByCategory } from '@/lib/supabase/talent';
+import { getAttendanceLogs } from '@/lib/supabase/attendance';
+import { getTalentRules } from '@/lib/supabase/talent';
+import { getCurrentWeekRange } from '@/lib/utils/date';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Coins, TrendingUp, Plus } from 'lucide-react';
@@ -14,7 +17,7 @@ import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useAuth } from '@/hooks/useAuth';
 import { getUserRole } from '@/lib/utils/auth';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -57,6 +60,32 @@ export function TalentCard({ studentId }: TalentCardProps) {
     queryFn: () => getTalentTransactions(studentId, 5),
     staleTime: 30 * 1000,
   });
+
+  // 이번주 범위 계산
+  const weekRange = useMemo(() => getCurrentWeekRange(), []);
+
+  // 이번주 출석 기록 조회
+  const { data: thisWeekAttendance = [] } = useQuery({
+    queryKey: ['attendance-logs', studentId, weekRange.startDate, weekRange.endDate],
+    queryFn: () =>
+      getAttendanceLogs({
+        student_id: studentId,
+        start_date: weekRange.startDate,
+        end_date: weekRange.endDate,
+        status: 'present',
+      }),
+    staleTime: 30 * 1000,
+  });
+
+  // 출석 달란트 규칙 조회
+  const { data: allRules = [] } = useQuery({
+    queryKey: ['talent-rules'],
+    queryFn: getTalentRules,
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const attendanceRule = allRules.find((r) => r.category === '출석' && r.is_active);
+  const attendanceAmount = attendanceRule?.amount || 0;
 
   // 활성 달란트 규칙 조회 (교사 승인 필요한 항목만)
   const { data: rules = [], isLoading: isLoadingRules } = useQuery({
@@ -148,29 +177,71 @@ export function TalentCard({ studentId }: TalentCardProps) {
             <p className="text-sm font-medium text-gray-700 mb-2">최근 거래 내역</p>
             {isLoadingTransactions ? (
               <p className="text-sm text-gray-500">로딩 중...</p>
-            ) : transactions.length > 0 ? (
-              <div className="space-y-2">
-                {transactions.map((transaction) => (
-                  <div
-                    key={transaction.id}
-                    className="flex items-center justify-between p-2 bg-gray-50 rounded text-sm"
-                  >
-                    <div>
-                      <p className="font-medium">{transaction.category}</p>
-                      <p className="text-xs text-gray-500">
-                        {format(new Date(transaction.created_at), 'yyyy년 M월 d일', { locale: ko })}
-                      </p>
-                    </div>
-                    <p className={`font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {transaction.amount > 0 ? '+' : ''}
-                      {transaction.amount.toLocaleString()}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-gray-500">거래 내역이 없습니다.</p>
-            )}
+            ) : (() => {
+              // 이번주 출석 달란트가 이미 지급되었는지 확인
+              const thisWeekAttendanceTransaction = transactions.find(
+                (tx) =>
+                  tx.category === '출석' &&
+                  new Date(tx.created_at) >= new Date(weekRange.startDate) &&
+                  new Date(tx.created_at) <= new Date(weekRange.endDate + 'T23:59:59')
+              );
+
+              // 이번주에 출석 기록이 있고, 출석 달란트가 아직 지급되지 않은 경우
+              const hasThisWeekAttendance = thisWeekAttendance.length > 0;
+              const showPendingAttendance =
+                hasThisWeekAttendance && !thisWeekAttendanceTransaction && attendanceAmount > 0;
+
+              // 표시할 거래 내역 목록 (이번주 출석 예정 항목 포함)
+              const displayTransactions = [...transactions];
+              if (showPendingAttendance) {
+                // 최상단에 이번주 출석 예정 항목 추가 (가상의 거래 객체)
+                displayTransactions.unshift({
+                  id: 'pending-attendance',
+                  student_id: studentId,
+                  amount: attendanceAmount,
+                  category: '출석',
+                  created_at: new Date().toISOString(),
+                } as any);
+              }
+
+              return displayTransactions.length > 0 ? (
+                <div className="space-y-2">
+                  {displayTransactions.map((transaction, index) => {
+                    const isPending = transaction.id === 'pending-attendance';
+                    const isThisWeek = !isPending && transaction.category === '출석' && 
+                      new Date(transaction.created_at) >= new Date(weekRange.startDate) &&
+                      new Date(transaction.created_at) <= new Date(weekRange.endDate + 'T23:59:59');
+
+                    return (
+                      <div
+                        key={transaction.id || `pending-${index}`}
+                        className={`flex items-center justify-between p-2 rounded text-sm ${
+                          isPending ? 'bg-blue-50 border border-blue-200' : 'bg-gray-50'
+                        }`}
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {transaction.category}
+                            {isPending && <span className="ml-1 text-xs text-blue-600">(이번주 예정)</span>}
+                          </p>
+                          <p className={`text-xs ${isPending ? 'text-blue-500' : 'text-gray-500'}`}>
+                            {isPending
+                              ? `이번주 (${format(new Date(weekRange.startDate), 'M월 d일', { locale: ko })} ~ ${format(new Date(weekRange.endDate), 'M월 d일', { locale: ko })})`
+                              : format(new Date(transaction.created_at), 'yyyy년 M월 d일', { locale: ko })}
+                          </p>
+                        </div>
+                        <p className={`font-semibold ${transaction.amount > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                          {transaction.amount > 0 ? '+' : ''}
+                          {transaction.amount.toLocaleString()}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <p className="text-sm text-gray-500">거래 내역이 없습니다.</p>
+              );
+            })()}
           </div>
         </CardContent>
       </Card>
