@@ -115,18 +115,32 @@
 - **해결**: `public.user_role()` 함수 생성 및 RLS 정책 추가
 - **상태**: ✅ SQL 실행 성공
 
+### ✅ 7. RLS 정책 수정 완료
+
+- **날짜**: 2026-01-13
+- **문제**: 
+  - `classes` 테이블 조회 시 500 에러
+  - `students` 테이블 조회 시 500 에러
+- **원인**: RLS 정책에서 `profiles` 테이블 직접 조회로 인한 무한 재귀
+- **해결**: 
+  - `public.user_role()` 함수 생성
+  - `classes` 테이블 RLS 정책 수정
+  - `students` 테이블 RLS 정책 수정
+- **상태**: ✅ SQL 실행 완료
+
 ### 다음 확인 사항
 
 1. **반 목록 확인**
    - 출석 체크 페이지에서 반 목록이 정상적으로 표시되는지 확인
    - URL: https://sunday-school-eta.vercel.app/attendance
 
-2. **장기 결석 알림 확인**
+2. **학생 목록 확인**
+   - 출석 체크 페이지에서 반 선택 후 학생 목록이 표시되는지 확인
+   - URL: https://sunday-school-eta.vercel.app/attendance
+
+3. **장기 결석 알림 확인**
    - 대시보드에서 장기 결석 알림이 정상적으로 표시되는지 확인
    - URL: https://sunday-school-eta.vercel.app/dashboard
-
-3. **학생 목록 확인**
-   - 출석 체크 페이지에서 반 선택 후 학생 목록이 표시되는지 확인
 
 ---
 
