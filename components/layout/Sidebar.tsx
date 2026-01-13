@@ -95,7 +95,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       >
         <div className="flex flex-col h-full">
           {/* 헤더 */}
-          <div className="flex items-center justify-between p-4 border-b border-gray-200">
+          <div className="flex items-center justify-between p-4 border-b border-gray-200 h-16">
             <h2 className="text-lg font-semibold text-gray-900">메뉴</h2>
             <Button
               variant="ghost"
