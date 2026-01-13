@@ -54,9 +54,9 @@ export default function StudentsPage() {
         description="학생 정보를 조회하고 관리하세요"
       />
 
-      <div className="flex gap-6">
+      <div className="flex flex-col gap-6 md:flex-row">
         {/* 반 선택 사이드바 */}
-        <div className="w-64 flex-shrink-0">
+        <div className="md:w-64 md:flex-shrink-0">
           <ClassSidebar
             onSelect={setSelectedClassId}
             selectedClassId={selectedClassId || undefined}

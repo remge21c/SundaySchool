@@ -40,16 +40,17 @@ export default function AttendancePage() {
         description="학생의 출석 상태를 터치로 빠르게 체크하세요"
       />
 
-      <div className="flex gap-6">
-        {/* 반 선택 사이드바 */}
-        <div className="w-64 flex-shrink-0">
+      {/* 레이아웃: 모바일에서는 세로(Stack), 데스크톱에서는 가로(Flex) */}
+      <div className="flex flex-col gap-6 md:flex-row">
+        {/* 반 선택 사이드바 - 모바일에서는 상단 전체 폭, 데스크톱에서는 좌측 고정 폭 */}
+        <div className="md:w-64 md:flex-shrink-0">
           <ClassSidebar
             onSelect={setSelectedClassId}
             selectedClassId={selectedClassId || undefined}
           />
         </div>
 
-        {/* 메인 컨텐츠 */}
+        {/* 메인 컨텐츠 - 모바일/데스크톱 공통으로 가변 폭 */}
         <div className="flex-1 space-y-6">
           {/* 날짜 선택 카드 */}
           <Card>
