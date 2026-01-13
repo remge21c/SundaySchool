@@ -14,6 +14,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useStudentsByClass, useAllStudents } from '@/hooks/useStudents';
 import { useAllClasses } from '@/hooks/useClasses';
+import { StudentAddForm } from '@/components/student/StudentAddForm';
 import { Search, UserPlus, Users, Loader2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
@@ -22,6 +23,7 @@ export default function StudentsPage() {
   const router = useRouter();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [isAddFormOpen, setIsAddFormOpen] = useState(false);
 
   // 반 목록 조회
   const { data: classes } = useAllClasses();
@@ -128,10 +130,7 @@ export default function StudentsPage() {
                   </CardDescription>
                 </div>
                 <Button
-                  onClick={() => {
-                    // TODO: 학생 추가 모달 또는 페이지로 이동
-                    alert('학생 추가 기능은 곧 추가될 예정입니다.');
-                  }}
+                  onClick={() => setIsAddFormOpen(true)}
                   className="flex items-center gap-2"
                 >
                   <UserPlus className="h-4 w-4" />
@@ -229,6 +228,17 @@ export default function StudentsPage() {
           </Card>
         </div>
       </div>
+
+      {/* 학생 추가 폼 모달 */}
+      <StudentAddForm
+        open={isAddFormOpen}
+        onClose={() => setIsAddFormOpen(false)}
+        onSuccess={() => {
+          setIsAddFormOpen(false);
+        }}
+        classes={classes || []}
+        defaultClassId={selectedClassId || undefined}
+      />
     </>
   );
 }
