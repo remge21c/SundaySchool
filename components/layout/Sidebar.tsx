@@ -5,12 +5,14 @@
 
 'use client';
 
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Calendar, AlertCircle, X, Users } from 'lucide-react';
+import { Home, Calendar, AlertCircle, X, Users, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { AbsenceAlertBadge } from '@/components/absence/AbsenceAlertBadge';
+import { isAdmin } from '@/lib/utils/auth';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -25,10 +27,22 @@ interface NavItem {
   path: string;
   icon: React.ReactNode;
   badge?: React.ReactNode;
+  adminOnly?: boolean;
 }
 
 export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
   const router = useRouter();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      if (user) {
+        const admin = await isAdmin();
+        setIsAdminUser(admin);
+      }
+    };
+    checkAdmin();
+  }, [user]);
 
   const navItems: NavItem[] = [
     {
@@ -52,7 +66,18 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       icon: <AlertCircle className="h-5 w-5" />,
       badge: user ? <AbsenceAlertBadge teacherId={user.id} /> : null,
     },
+    {
+      label: '관리자',
+      path: '/admin',
+      icon: <Settings className="h-5 w-5" />,
+      adminOnly: true,
+    },
   ];
+
+  // 관리자가 아닌 경우 관리자 메뉴 필터링
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || isAdminUser
+  );
 
   const handleNavClick = (path: string) => {
     router.push(path);
@@ -85,7 +110,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
 
           {/* 네비게이션 아이템 */}
           <nav className="flex-1 p-4 space-y-2">
-            {navItems.map((item, index) => {
+            {visibleNavItems.map((item, index) => {
               const isActive = currentPath === item.path;
               return (
                 <button
