@@ -12,6 +12,7 @@ import {
   createDepartment,
   updateDepartment,
   deleteDepartment,
+  moveDepartment,
 } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,7 +26,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trash2, Building2 } from 'lucide-react';
+import { Plus, Edit, Trash2, Building2, ChevronUp, ChevronDown } from 'lucide-react';
 import type { Department } from '@/lib/supabase/departments';
 
 export function DepartmentManagement() {
@@ -70,6 +71,15 @@ export function DepartmentManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setDeletingDepartment(null);
+    },
+  });
+
+  // 부서 순서 변경
+  const moveMutation = useMutation({
+    mutationFn: ({ departmentId, direction }: { departmentId: string; direction: 'up' | 'down' }) =>
+      moveDepartment(departmentId, direction),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['departments'] });
     },
   });
 
@@ -135,6 +145,15 @@ export function DepartmentManagement() {
     }
   };
 
+  const handleMove = async (departmentId: string, direction: 'up' | 'down') => {
+    try {
+      await moveMutation.mutateAsync({ departmentId, direction });
+    } catch (error) {
+      console.error('부서 순서 변경 실패:', error);
+      alert('부서 순서 변경에 실패했습니다.');
+    }
+  };
+
   if (departmentsLoading) {
     return (
       <div className="flex items-center justify-center py-8">
@@ -172,7 +191,7 @@ export function DepartmentManagement() {
 
       {/* 부서 목록 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {departments.map((dept) => (
+        {departments.map((dept, index) => (
           <Card key={dept.id} className={!dept.is_active ? 'opacity-50' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">
@@ -180,9 +199,34 @@ export function DepartmentManagement() {
                   <Building2 className="h-5 w-5" />
                   {dept.name}
                 </span>
-                {!dept.is_active && (
-                  <span className="text-xs text-gray-500">(비활성화)</span>
-                )}
+                <div className="flex items-center gap-1">
+                  {!dept.is_active && (
+                    <span className="text-xs text-gray-500">(비활성화)</span>
+                  )}
+                  {/* 순서 변경 버튼 */}
+                  <div className="flex flex-col">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 p-0"
+                      onClick={() => handleMove(dept.id, 'up')}
+                      disabled={index === 0 || moveMutation.isPending}
+                      title="위로 이동"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 p-0"
+                      onClick={() => handleMove(dept.id, 'down')}
+                      disabled={index === departments.length - 1 || moveMutation.isPending}
+                      title="아래로 이동"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
               </CardTitle>
               {dept.description && (
                 <CardDescription>{dept.description}</CardDescription>
