@@ -183,16 +183,6 @@ export function ClassManagement() {
     return '교사 선택';
   };
 
-  // 반에 배정된 모든 교사 이름 가져오기 (캐시된 데이터 사용)
-  const getClassTeachersForDisplay = async (classId: string): Promise<string[]> => {
-    try {
-      const teacherIds = await getClassTeachers(classId);
-      return teacherIds.map((id) => getTeacherName(id));
-    } catch {
-      return [];
-    }
-  };
-
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -310,7 +300,6 @@ export function ClassManagement() {
           <ClassCard
             key={cls.id}
             cls={cls}
-            teachers={teachers}
             getTeacherName={getTeacherName}
             onEdit={() => setEditingClass(cls)}
             onDelete={() => handleDelete(cls.id)}
@@ -510,13 +499,11 @@ export function ClassManagement() {
 // 반 카드 컴포넌트 (교사 목록 표시용)
 function ClassCard({
   cls,
-  teachers,
   getTeacherName,
   onEdit,
   onDelete,
 }: {
   cls: Class;
-  teachers: Teacher[];
   getTeacherName: (id: string | null) => string;
   onEdit: () => void;
   onDelete: () => void;

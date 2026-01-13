@@ -107,14 +107,11 @@ export async function getClassesByTeacher(
 
   // main_teacher_id로 배정된 반 조회
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let mainTeacherQuery = (supabase
+  const { data: mainTeacherClasses, error: mainTeacherError } = await ((supabase
     .from('classes') as any)
     .select('*')
     .eq('main_teacher_id', teacherId)
-    .eq('year', currentYear);
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data: mainTeacherClasses, error: mainTeacherError } = await (mainTeacherQuery as any);
+    .eq('year', currentYear));
 
   if (mainTeacherError) {
     throw mainTeacherError;
@@ -134,7 +131,7 @@ export async function getClassesByTeacher(
   const classTeacherIds = (classTeachersData ?? []).map((row: any) => row.class_id);
 
   // class_teachers로 배정된 반 조회
-  let classTeacherClasses: Class[] = [];
+  const classTeacherClasses: Class[] = [];
   if (classTeacherIds.length > 0) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await ((supabase
