@@ -145,18 +145,34 @@ export async function updateStudent(
     .from('students') as any)
     .update(updateData)
     .eq('id', studentId)
-    .select()
-    .single());
+    .select());
 
   if (error) {
+    // PGRST116: 결과가 0개 행일 때
+    if (error.code === 'PGRST116') {
+      // 업데이트는 성공했지만 RLS 정책으로 조회가 차단된 경우
+      // 다시 조회 시도
+      const student = await getStudentById(studentId);
+      if (student) {
+        return student;
+      }
+      throw new Error('학생 정보를 업데이트했지만 조회할 수 없습니다. 권한을 확인해주세요.');
+    }
     throw error;
   }
 
-  if (!data) {
+  // 결과가 배열로 반환되므로 첫 번째 요소 사용
+  if (!data || data.length === 0) {
+    // 업데이트는 성공했지만 결과를 조회할 수 없는 경우
+    // 다시 조회 시도
+    const student = await getStudentById(studentId);
+    if (student) {
+      return student;
+    }
     throw new Error('학생 정보 업데이트에 실패했습니다.');
   }
 
-  return data as Student;
+  return data[0] as Student;
 }
 
 /**
@@ -177,6 +193,12 @@ export async function updateStudentPhoto(
       throw new Error(
         '학생 테이블에 photo_url 필드가 없습니다. Supabase에서 다음 SQL을 실행해주세요:\n' +
         'ALTER TABLE students ADD COLUMN IF NOT EXISTS photo_url TEXT;'
+      );
+    }
+    // PGRST116: 결과가 0개 행일 때 (RLS 정책 문제 가능)
+    if (error?.code === 'PGRST116' || error?.message?.includes('0 rows')) {
+      throw new Error(
+        '학생 정보를 업데이트했지만 조회할 수 없습니다. RLS 정책을 확인해주세요.'
       );
     }
     throw error;
