@@ -236,6 +236,32 @@ export interface Database {
           updated_at?: string;
         };
       };
+      app_settings: {
+        Row: {
+          id: string;
+          app_name: string;
+          description: string | null;
+          updated_by: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          app_name: string;
+          description?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          app_name?: string;
+          description?: string | null;
+          updated_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+      };
     };
     Views: {
       [_ in never]: never;

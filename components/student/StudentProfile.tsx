@@ -278,7 +278,7 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
         {user && (
           <>
             <NoteForm studentId={student.id} />
-            <NoteTimeline studentId={student.id} />
+            <NoteTimeline studentId={student.id} classInfo={classInfo || undefined} />
           </>
         )}
 
@@ -305,7 +305,7 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
             <CardDescription>학생의 심방 기록을 확인하세요</CardDescription>
           </CardHeader>
           <CardContent>
-            <VisitationTimeline studentId={student.id} />
+            <VisitationTimeline studentId={student.id} classInfo={classInfo || undefined} />
           </CardContent>
         </Card>
       </div>

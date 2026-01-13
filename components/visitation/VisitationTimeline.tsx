@@ -11,9 +11,11 @@ import { Phone, Home, MessageSquare, Lock, Heart } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import type { VisitationType } from '@/types/visitation';
+import type { Class } from '@/types/class';
 
 interface VisitationTimelineProps {
   studentId: string;
+  classInfo?: Class | null;
 }
 
 /**
@@ -45,7 +47,7 @@ function getVisitationTypeInfo(type: VisitationType) {
   }
 }
 
-export function VisitationTimeline({ studentId }: VisitationTimelineProps) {
+export function VisitationTimeline({ studentId, classInfo }: VisitationTimelineProps) {
   const { data: visitations, isLoading, error } = useVisitations({ student_id: studentId });
 
   if (isLoading) {
@@ -123,7 +125,14 @@ export function VisitationTimeline({ studentId }: VisitationTimelineProps) {
                       <Icon className={`h-4 w-4 ${typeInfo.color}`} />
                     </div>
                     <div>
-                      <div className="font-semibold text-gray-900">{visitDate}</div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="font-semibold text-gray-900">{visitDate}</span>
+                        {classInfo && (
+                          <span className="text-gray-400 text-xs font-normal">
+                            {classInfo.department} - {classInfo.name}
+                          </span>
+                        )}
+                      </div>
                       <div className="text-sm text-gray-600">{typeInfo.label}</div>
                     </div>
                   </div>

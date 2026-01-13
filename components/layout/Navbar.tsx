@@ -9,6 +9,8 @@ import { Menu, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { AbsenceAlertBadge } from '@/components/absence/AbsenceAlertBadge';
+import { useQuery } from '@tanstack/react-query';
+import { getAppName } from '@/lib/supabase/settings';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -17,6 +19,14 @@ interface NavbarProps {
 }
 
 export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
+  // 교적부 이름 동적 로드
+  const { data: appName = '주일학교 교적부' } = useQuery({
+    queryKey: ['app-name'],
+    queryFn: getAppName,
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+    refetchOnWindowFocus: false,
+  });
+
   return (
     <nav className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
@@ -36,7 +46,7 @@ export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
             {/* 로고/제목 */}
             <div className="flex items-center">
               <h1 className="text-xl font-bold text-gray-900">
-                주일학교 교적부
+                {appName}
               </h1>
             </div>
           </div>

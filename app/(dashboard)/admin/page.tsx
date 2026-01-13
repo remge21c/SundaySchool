@@ -12,6 +12,8 @@ import { isAdmin } from '@/lib/utils/auth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { ClassManagement } from '@/components/admin/ClassManagement';
 import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
+import { AppNameSettings } from '@/components/admin/AppNameSettings';
+import { Separator } from '@/components/ui/separator';
 
 export default function AdminPage() {
   const { user, loading: authLoading } = useAuth();
@@ -86,10 +88,11 @@ export default function AdminPage() {
         description="부서 관리, 반 관리 및 교사 배정"
       />
       <div className="space-y-8">
+        <AppNameSettings />
+        <Separator />
         <DepartmentManagement />
-        <div className="border-t pt-8">
-          <ClassManagement />
-        </div>
+        <Separator />
+        <ClassManagement />
       </div>
     </>
   );

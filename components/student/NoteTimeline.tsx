@@ -27,11 +27,14 @@ import { Input } from '@/components/ui/input';
 import { useAuth } from '@/hooks/useAuth';
 import type { StudentNote } from '@/lib/supabase/notes';
 
+import type { Class } from '@/types/class';
+
 interface NoteTimelineProps {
   studentId: string;
+  classInfo?: Class | null;
 }
 
-export function NoteTimeline({ studentId }: NoteTimelineProps) {
+export function NoteTimeline({ studentId, classInfo }: NoteTimelineProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
   const [editingNote, setEditingNote] = useState<StudentNote | null>(null);
@@ -146,10 +149,15 @@ export function NoteTimeline({ studentId }: NoteTimelineProps) {
                 >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
-                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-2">
+                      <div className="flex items-center gap-2 text-sm text-gray-600 mb-2 flex-wrap">
                         <span className="font-medium">
                           {format(new Date(note.note_date), 'yyyy년 M월 d일', { locale: ko })}
                         </span>
+                        {classInfo && (
+                          <span className="text-gray-400 text-xs">
+                            {classInfo.department} - {classInfo.name}
+                          </span>
+                        )}
                         <span>•</span>
                         <span>
                           {note.teacher_id === user?.id
