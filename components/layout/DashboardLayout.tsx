@@ -34,10 +34,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  // 인증되지 않은 사용자는 로그인 페이지로 리다이렉트
+  // 인증되지 않은 사용자는 메인 페이지(로그인 페이지)로 리다이렉트
   useEffect(() => {
     if (!loading && !user) {
-      router.push('/login');
+      router.replace('/');
     }
   }, [user, loading, router]);
 

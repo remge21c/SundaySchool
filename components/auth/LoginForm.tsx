@@ -80,8 +80,11 @@ export function LoginForm() {
         
         setError(errorMessage);
       } else {
-        // 로그인 성공 시 대시보드로 리다이렉트
-        router.push('/dashboard');
+        // 로그인 성공 시 세션이 저장될 시간을 주고 대시보드로 리다이렉트
+        // 모바일에서 세션 저장 지연을 고려하여 약간의 지연 추가
+        setTimeout(() => {
+          router.replace('/dashboard');
+        }, 100);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '로그인 중 오류가 발생했습니다.');
