@@ -113,3 +113,60 @@ export async function assignTeacherToClass(
 ): Promise<Class> {
   return updateClass(classId, { main_teacher_id: teacherId });
 }
+
+/**
+ * 반에 배정된 교사 목록 조회
+ * @param classId 반 ID
+ * @returns 교사 ID 배열
+ */
+export async function getClassTeachers(classId: string): Promise<string[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await ((supabase
+    .from('class_teachers') as any)
+    .select('teacher_id')
+    .eq('class_id', classId));
+
+  if (error) {
+    throw error;
+  }
+
+  return (data ?? []).map((row: any) => row.teacher_id);
+}
+
+/**
+ * 반에 여러 교사 배정 (관리자 전용)
+ * @param classId 반 ID
+ * @param teacherIds 교사 ID 배열
+ */
+export async function assignTeachersToClass(
+  classId: string,
+  teacherIds: string[]
+): Promise<void> {
+  // 기존 배정 삭제
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error: deleteError } = await ((supabase
+    .from('class_teachers') as any)
+    .delete()
+    .eq('class_id', classId));
+
+  if (deleteError) {
+    throw deleteError;
+  }
+
+  // 새 배정 추가
+  if (teacherIds.length > 0) {
+    const insertData = teacherIds.map((teacherId) => ({
+      class_id: classId,
+      teacher_id: teacherId,
+    }));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { error: insertError } = await ((supabase
+      .from('class_teachers') as any)
+      .insert(insertData));
+
+    if (insertError) {
+      throw insertError;
+    }
+  }
+}

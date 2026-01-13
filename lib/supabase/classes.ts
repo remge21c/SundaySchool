@@ -102,30 +102,64 @@ export async function getClassesByTeacher(
   teacherId: string,
   year?: number
 ): Promise<Class[]> {
-  let query = supabase
-    .from('classes')
+  // main_teacher_id로 배정된 반과 class_teachers로 배정된 반 모두 조회
+  const currentYear = year ?? new Date().getFullYear();
+
+  // main_teacher_id로 배정된 반 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let mainTeacherQuery = (supabase
+    .from('classes') as any)
     .select('*')
-    .eq('main_teacher_id', teacherId);
-
-  // 연도 필터
-  if (year) {
-    query = query.eq('year', year);
-  } else {
-    const currentYear = new Date().getFullYear();
-    query = query.eq('year', currentYear);
-  }
-
-  // 이름 순 정렬
-  query = query.order('name', { ascending: true });
+    .eq('main_teacher_id', teacherId)
+    .eq('year', currentYear);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (query as any);
+  const { data: mainTeacherClasses, error: mainTeacherError } = await (mainTeacherQuery as any);
 
-  if (error) {
-    throw error;
+  if (mainTeacherError) {
+    throw mainTeacherError;
   }
 
-  return (data ?? []) as Class[];
+  // class_teachers로 배정된 반 ID 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: classTeachersData, error: classTeachersError } = await ((supabase
+    .from('class_teachers') as any)
+    .select('class_id')
+    .eq('teacher_id', teacherId));
+
+  if (classTeachersError) {
+    throw classTeachersError;
+  }
+
+  const classTeacherIds = (classTeachersData ?? []).map((row: any) => row.class_id);
+
+  // class_teachers로 배정된 반 조회
+  let classTeacherClasses: Class[] = [];
+  if (classTeacherIds.length > 0) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await ((supabase
+      .from('classes') as any)
+      .select('*')
+      .in('id', classTeacherIds)
+      .eq('year', currentYear));
+
+    if (error) {
+      throw error;
+    }
+
+    classTeacherClasses = (data ?? []) as Class[];
+  }
+
+  // 두 결과를 합치고 중복 제거
+  const allClasses = [...(mainTeacherClasses ?? []), ...classTeacherClasses];
+  const uniqueClasses = Array.from(
+    new Map(allClasses.map((cls) => [cls.id, cls])).values()
+  );
+
+  // 이름 순 정렬
+  uniqueClasses.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
+
+  return uniqueClasses;
 }
 
 /**

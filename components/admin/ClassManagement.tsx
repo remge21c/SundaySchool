@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllClasses } from '@/lib/supabase/classes';
 import {
@@ -13,6 +13,8 @@ import {
   createClass,
   updateClass,
   deleteClass,
+  getClassTeachers,
+  assignTeachersToClass,
 } from '@/lib/supabase/admin';
 import { getAllDepartments } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -52,6 +54,7 @@ export function ClassManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+  const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<string>>(new Set());
 
   // 반 목록 조회
   const {
@@ -86,6 +89,25 @@ export function ClassManagement() {
     retry: 1,
   });
 
+  // 반에 배정된 교사 목록 조회
+  const { data: classTeachers = [] } = useQuery({
+    queryKey: ['class-teachers', editingClass?.id],
+    queryFn: () => {
+      if (!editingClass?.id) return [];
+      return getClassTeachers(editingClass.id);
+    },
+    enabled: !!editingClass?.id,
+  });
+
+  // 편집 중인 반이 변경되면 배정된 교사 목록 로드
+  useEffect(() => {
+    if (editingClass && classTeachers) {
+      setSelectedTeacherIds(new Set(classTeachers));
+    } else {
+      setSelectedTeacherIds(new Set());
+    }
+  }, [editingClass, classTeachers]);
+
   // 반 생성
   const createMutation = useMutation({
     mutationFn: createClass,
@@ -97,11 +119,15 @@ export function ClassManagement() {
 
   // 반 수정
   const updateMutation = useMutation({
-    mutationFn: ({ classId, input }: { classId: string; input: any }) =>
-      updateClass(classId, input),
+    mutationFn: async ({ classId, input, teacherIds }: { classId: string; input: any; teacherIds: string[] }) => {
+      await updateClass(classId, input);
+      await assignTeachersToClass(classId, teacherIds);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['classes'] });
+      queryClient.invalidateQueries({ queryKey: ['class-teachers'] });
       setEditingClass(null);
+      setSelectedTeacherIds(new Set());
     },
   });
 
@@ -112,7 +138,6 @@ export function ClassManagement() {
       queryClient.invalidateQueries({ queryKey: ['classes'] });
     },
   });
-
 
   // 부서별 반 그룹화
   const classesByDepartment = classes.reduce((acc, cls) => {
@@ -158,6 +183,16 @@ export function ClassManagement() {
     return '교사 선택';
   };
 
+  // 반에 배정된 모든 교사 이름 가져오기 (캐시된 데이터 사용)
+  const getClassTeachersForDisplay = async (classId: string): Promise<string[]> => {
+    try {
+      const teacherIds = await getClassTeachers(classId);
+      return teacherIds.map((id) => getTeacherName(id));
+    } catch {
+      return [];
+    }
+  };
+
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
@@ -174,7 +209,7 @@ export function ClassManagement() {
     });
   };
 
-  const handleUpdate = (e: React.FormEvent<HTMLFormElement>) => {
+  const handleUpdate = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!editingClass) return;
 
@@ -184,9 +219,12 @@ export function ClassManagement() {
     const main_teacher_id_raw = formData.get('main_teacher_id') as string;
     const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
+    const teacherIds = Array.from(selectedTeacherIds);
+
     updateMutation.mutate({
       classId: editingClass.id,
       input: { name, department, main_teacher_id },
+      teacherIds,
     });
   };
 
@@ -196,6 +234,17 @@ export function ClassManagement() {
     }
   };
 
+  const handleTeacherToggle = (teacherId: string) => {
+    setSelectedTeacherIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(teacherId)) {
+        newSet.delete(teacherId);
+      } else {
+        newSet.add(teacherId);
+      }
+      return newSet;
+    });
+  };
 
   if (classesLoading || teachersLoading || departmentsLoading) {
     return (
@@ -258,42 +307,14 @@ export function ClassManagement() {
       {/* 반 목록 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredClasses.map((cls) => (
-          <Card key={cls.id}>
-            <CardHeader>
-              <CardTitle className="flex items-center justify-between">
-                <span>{cls.department} {cls.name}</span>
-                <div className="flex gap-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => setEditingClass(cls)}
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => handleDelete(cls.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              </CardTitle>
-              <CardDescription>
-                {CURRENT_YEAR}학년도
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Users className="h-4 w-4 text-gray-400" />
-                  <span className="text-sm">
-                    담임: {getTeacherName(cls.main_teacher_id)}
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <ClassCard
+            key={cls.id}
+            cls={cls}
+            teachers={teachers}
+            getTeacherName={getTeacherName}
+            onEdit={() => setEditingClass(cls)}
+            onDelete={() => handleDelete(cls.id)}
+          />
         ))}
       </div>
 
@@ -371,7 +392,7 @@ export function ClassManagement() {
 
       {/* 반 수정 다이얼로그 */}
       <Dialog open={!!editingClass} onOpenChange={() => setEditingClass(null)}>
-        <DialogContent>
+        <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>반 수정</DialogTitle>
             <DialogDescription>반 정보를 수정합니다.</DialogDescription>
@@ -434,6 +455,37 @@ export function ClassManagement() {
                     </SelectContent>
                   </Select>
                 </div>
+                <div className="space-y-2">
+                  <Label>교사 배정 (여러 명 선택 가능)</Label>
+                  <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
+                    <div className="space-y-2">
+                      {teachers.map((teacher: Teacher) => {
+                        const teacherDisplayName = teacher.full_name
+                          ? `${teacher.full_name} (${teacher.email})`
+                          : teacher.email;
+                        const isChecked = selectedTeacherIds.has(teacher.id);
+                        
+                        return (
+                          <div key={teacher.id} className="flex items-center space-x-2">
+                            <input
+                              type="checkbox"
+                              id={`teacher-${teacher.id}`}
+                              checked={isChecked}
+                              onChange={() => handleTeacherToggle(teacher.id)}
+                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                            />
+                            <label
+                              htmlFor={`teacher-${teacher.id}`}
+                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                            >
+                              {teacherDisplayName}
+                            </label>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
               </div>
               <DialogFooter>
                 <Button
@@ -452,5 +504,76 @@ export function ClassManagement() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+// 반 카드 컴포넌트 (교사 목록 표시용)
+function ClassCard({
+  cls,
+  teachers,
+  getTeacherName,
+  onEdit,
+  onDelete,
+}: {
+  cls: Class;
+  teachers: Teacher[];
+  getTeacherName: (id: string | null) => string;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
+  const { data: classTeacherIds = [] } = useQuery({
+    queryKey: ['class-teachers', cls.id],
+    queryFn: () => getClassTeachers(cls.id),
+    staleTime: 5 * 60 * 1000,
+  });
+
+  const mainTeacherName = getTeacherName(cls.main_teacher_id);
+  const otherTeacherNames = classTeacherIds
+    .filter((id) => id !== cls.main_teacher_id)
+    .map((id) => getTeacherName(id))
+    .filter((name) => name !== '미배정');
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center justify-between">
+          <span>{cls.department} {cls.name}</span>
+          <div className="flex gap-2">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onEdit}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onDelete}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        </CardTitle>
+        <CardDescription>
+          {CURRENT_YEAR}학년도
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Users className="h-4 w-4 text-gray-400" />
+            <span className="text-sm">
+              담임: {mainTeacherName}
+            </span>
+          </div>
+          {otherTeacherNames.length > 0 && (
+            <div className="flex items-center gap-2 text-sm text-gray-600">
+              <span>보조: {otherTeacherNames.join(', ')}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
