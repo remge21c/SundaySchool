@@ -44,7 +44,7 @@
 3. **Create new user** 선택
 4. 다음 정보 입력:
    - **Email**: 교사 이메일 주소 (예: `teacher1@example.com`)
-   - **Password**: 임시 비밀번호 (6자 이상, 강력한 비밀번호 권장)
+   - **Password**: 임시 비밀번호 (4자 이상, 강력한 비밀번호 권장)
      - 예: `TempPass123!` (교사에게 전달 후 변경 권장)
    - **Auto Confirm User**: ✅ 체크 (이메일 인증 생략)
 5. **Create user** 클릭

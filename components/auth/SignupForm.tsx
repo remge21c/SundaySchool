@@ -54,8 +54,8 @@ export function SignupForm() {
     }
 
     // 비밀번호 검증
-    if (password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
+    if (password.length < 4) {
+      setError('비밀번호는 4자 이상이어야 합니다.');
       return;
     }
 
@@ -131,13 +131,13 @@ export function SignupForm() {
             <Input
               id="password"
               type="password"
-              placeholder="비밀번호를 입력하세요 (6자 이상)"
+              placeholder="비밀번호를 입력하세요 (4자 이상)"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isSubmitting}
               autoComplete="new-password"
-              minLength={6}
+              minLength={4}
             />
           </div>
 
@@ -154,7 +154,7 @@ export function SignupForm() {
               required
               disabled={isSubmitting}
               autoComplete="new-password"
-              minLength={6}
+              minLength={4}
             />
           </div>
 

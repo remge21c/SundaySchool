@@ -52,8 +52,8 @@ export function LoginForm() {
     }
 
     // 비밀번호 검증
-    if (password.length < 6) {
-      setError('비밀번호는 6자 이상이어야 합니다.');
+    if (password.length < 4) {
+      setError('비밀번호는 4자 이상이어야 합니다.');
       return;
     }
 

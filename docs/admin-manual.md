@@ -59,7 +59,7 @@
 4. **Add user** → **Create new user**
 5. 다음 정보 입력:
    - **Email**: 교사 이메일
-   - **Password**: 임시 비밀번호 (6자 이상)
+   - **Password**: 임시 비밀번호 (4자 이상)
 6. **Create user** 클릭
 7. 생성된 사용자 ID 복사
 
