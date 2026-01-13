@@ -5,14 +5,12 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
 import { Menu, LogOut, User } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { User as SupabaseUser } from '@supabase/supabase-js';
 import { AbsenceAlertBadge } from '@/components/absence/AbsenceAlertBadge';
 import { useQuery } from '@tanstack/react-query';
 import { getAppName } from '@/lib/supabase/settings';
-import { cn } from '@/lib/utils';
 
 interface NavbarProps {
   onMenuClick: () => void;
@@ -21,9 +19,6 @@ interface NavbarProps {
 }
 
 export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
-
   // 교적부 이름 동적 로드
   const { data: appName = '주일학교 교적부' } = useQuery({
     queryKey: ['app-name'],
@@ -32,34 +27,8 @@ export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
     refetchOnWindowFocus: false,
   });
 
-  // 스크롤 방향 감지
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-
-      // 스크롤 다운: 메뉴 숨김 (아래로 이동)
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      }
-      // 스크롤 업: 메뉴 표시
-      else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
-
   return (
-    <nav
-      className={cn(
-        'sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm transition-transform duration-300 ease-in-out',
-        isVisible ? 'translate-y-0' : 'translate-y-full'
-      )}
-    >
+    <nav className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* 왼쪽: 햄버거 메뉴 (모바일) */}
