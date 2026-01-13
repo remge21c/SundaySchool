@@ -59,7 +59,7 @@ export function AppNameSettings() {
 
     updateMutation.mutate({
       app_name: appName.trim(),
-      description: description.trim() || null,
+      description: description.trim() || undefined,
     });
   };
 
