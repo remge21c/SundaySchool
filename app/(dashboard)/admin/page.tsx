@@ -17,21 +17,28 @@ export default function AdminPage() {
   const router = useRouter();
   const [isAdminUser, setIsAdminUser] = useState<boolean | null>(null);
   const [checkingAdmin, setCheckingAdmin] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const checkAdmin = async () => {
-      if (!authLoading && user) {
-        const admin = await isAdmin();
-        setIsAdminUser(admin);
-        setCheckingAdmin(false);
+      try {
+        if (!authLoading && user) {
+          const admin = await isAdmin();
+          setIsAdminUser(admin);
+          setCheckingAdmin(false);
 
-        if (!admin) {
-          // 관리자가 아니면 대시보드로 리다이렉트
-          router.push('/dashboard');
+          if (!admin) {
+            // 관리자가 아니면 대시보드로 리다이렉트
+            router.push('/dashboard');
+          }
+        } else if (!authLoading && !user) {
+          // 로그인되지 않았으면 로그인 페이지로
+          router.push('/login');
         }
-      } else if (!authLoading && !user) {
-        // 로그인되지 않았으면 로그인 페이지로
-        router.push('/login');
+      } catch (err) {
+        console.error('관리자 권한 확인 중 에러:', err);
+        setError('관리자 권한을 확인하는 중 오류가 발생했습니다.');
+        setCheckingAdmin(false);
       }
     };
 
@@ -41,7 +48,28 @@ export default function AdminPage() {
   if (authLoading || checkingAdmin) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="text-gray-500">로딩 중...</div>
+        <div className="text-center">
+          <div className="text-gray-500 mb-2">로딩 중...</div>
+          {error && (
+            <div className="text-red-500 text-sm mt-2">{error}</div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <div className="text-red-500 mb-4">{error}</div>
+          <button
+            onClick={() => router.push('/dashboard')}
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+          >
+            대시보드로 돌아가기
+          </button>
+        </div>
       </div>
     );
   }

@@ -55,15 +55,25 @@ export function ClassManagement() {
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
 
   // 반 목록 조회
-  const { data: classes = [], isLoading: classesLoading } = useQuery({
+  const {
+    data: classes = [],
+    isLoading: classesLoading,
+    error: classesError,
+  } = useQuery({
     queryKey: ['classes', 'all', CURRENT_YEAR],
     queryFn: () => getAllClasses(CURRENT_YEAR),
+    retry: 1,
   });
 
   // 교사 목록 조회
-  const { data: teachers = [], isLoading: teachersLoading } = useQuery({
+  const {
+    data: teachers = [],
+    isLoading: teachersLoading,
+    error: teachersError,
+  } = useQuery({
     queryKey: ['admin', 'teachers'],
     queryFn: getAllTeachers,
+    retry: 1,
   });
 
   // 반 생성
@@ -162,7 +172,31 @@ export function ClassManagement() {
   };
 
   if (classesLoading || teachersLoading) {
-    return <div className="text-center text-gray-500">로딩 중...</div>;
+    return (
+      <div className="text-center text-gray-500">
+        <div className="mb-2">로딩 중...</div>
+        <div className="text-sm">반 목록과 교사 목록을 불러오는 중입니다.</div>
+      </div>
+    );
+  }
+
+  if (classesError || teachersError) {
+    return (
+      <div className="rounded-md bg-destructive/10 p-4 text-destructive">
+        <div className="font-semibold mb-2">데이터를 불러오는 중 오류가 발생했습니다.</div>
+        <div className="text-sm">
+          {classesError && (
+            <div>반 목록: {classesError instanceof Error ? classesError.message : '알 수 없는 오류'}</div>
+          )}
+          {teachersError && (
+            <div>교사 목록: {teachersError instanceof Error ? teachersError.message : '알 수 없는 오류'}</div>
+          )}
+          <div className="mt-2 text-xs">
+            관리자 권한이 올바르게 설정되었는지 확인하세요.
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
