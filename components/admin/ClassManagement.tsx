@@ -400,9 +400,9 @@ export function ClassManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {DEPARTMENTS.map((dept) => (
-                        <SelectItem key={dept} value={dept}>
-                          {dept}
+                      {departments.map((dept) => (
+                        <SelectItem key={dept.id} value={dept.name}>
+                          {dept.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
