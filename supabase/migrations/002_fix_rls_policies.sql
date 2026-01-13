@@ -40,3 +40,25 @@ USING (
   )
   OR public.user_role() = 'admin'
 );
+
+-- attendance_logs 테이블 정책 수정 (무한 재귀 방지)
+DROP POLICY IF EXISTS "Teachers can manage their class attendance" ON attendance_logs;
+
+-- 교사는 자신이 담당하는 반의 출석 기록 조회/생성/수정 가능, 관리자는 모든 출석 기록 가능
+CREATE POLICY "Teachers can manage their class attendance"
+ON attendance_logs FOR ALL
+TO authenticated
+USING (
+  class_id IN (
+    SELECT id FROM classes
+    WHERE main_teacher_id = auth.uid()
+  )
+  OR public.user_role() = 'admin'
+)
+WITH CHECK (
+  class_id IN (
+    SELECT id FROM classes
+    WHERE main_teacher_id = auth.uid()
+  )
+  OR public.user_role() = 'admin'
+);
