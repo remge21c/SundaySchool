@@ -191,7 +191,7 @@ export function DepartmentManagement() {
 
       {/* 부서 목록 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {departments.map((dept, index) => (
+        {(departments || []).map((dept, index) => (
           <Card key={dept.id} className={!dept.is_active ? 'opacity-50' : ''}>
             <CardHeader>
               <CardTitle className="flex items-center justify-between">

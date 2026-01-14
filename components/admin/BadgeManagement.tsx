@@ -189,11 +189,11 @@ export function BadgeManagement() {
         <CardContent>
           {badgesLoading ? (
             <p className="text-gray-500">로딩 중...</p>
-          ) : badges.length === 0 ? (
+          ) : !badges || badges.length === 0 ? (
             <p className="text-gray-500">등록된 배지가 없습니다.</p>
           ) : (
             <div className="space-y-3">
-              {badges.map((badge) => (
+              {(badges || []).map((badge) => (
                 <div
                   key={badge.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"

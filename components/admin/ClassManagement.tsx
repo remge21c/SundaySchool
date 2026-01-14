@@ -147,7 +147,7 @@ export function ClassManagement() {
   });
 
   // 부서별 반 그룹화
-  const classesByDepartment = classes.reduce((acc, cls) => {
+  const classesByDepartment = (classes || []).reduce((acc, cls) => {
     if (!acc[cls.department]) {
       acc[cls.department] = [];
     }
@@ -161,7 +161,7 @@ export function ClassManagement() {
     return department?.sort_order ?? 999; // 부서를 찾을 수 없으면 마지막에 배치
   };
 
-  const sortedClasses = [...classes].sort((a, b) => {
+  const sortedClasses = [...(classes || [])].sort((a, b) => {
     const orderA = getDepartmentSortOrder(a.department);
     const orderB = getDepartmentSortOrder(b.department);
     if (orderA !== orderB) {
@@ -172,8 +172,8 @@ export function ClassManagement() {
   });
 
   const filteredClasses = selectedDepartment
-    ? classesByDepartment[selectedDepartment] || []
-    : sortedClasses;
+    ? (classesByDepartment[selectedDepartment] || [])
+    : (sortedClasses || []);
 
   const getTeacherName = (teacherId: string | null) => {
     if (!teacherId) return '미배정';
@@ -287,7 +287,7 @@ export function ClassManagement() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">전체</SelectItem>
-            {departments.map((dept) => (
+            {(departments || []).map((dept) => (
               <SelectItem key={dept.id} value={dept.name}>
                 {dept.name}
               </SelectItem>
@@ -303,7 +303,7 @@ export function ClassManagement() {
 
       {/* 반 목록 */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {filteredClasses.map((cls) => (
+        {(filteredClasses || []).map((cls) => (
           <ClassCard
             key={cls.id}
             cls={cls}
@@ -330,7 +330,7 @@ export function ClassManagement() {
                     <SelectValue placeholder="부서 선택" />
                   </SelectTrigger>
                   <SelectContent>
-                    {departments.map((dept) => (
+                    {(departments || []).map((dept) => (
                       <SelectItem key={dept.id} value={dept.name}>
                         {dept.name}
                       </SelectItem>
@@ -355,7 +355,7 @@ export function ClassManagement() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="unassigned">미배정</SelectItem>
-                    {teachers.map((teacher: Teacher) => {
+                    {(teachers || []).map((teacher: Teacher) => {
                       const teacherDisplayName = teacher.full_name
                         ? `${teacher.full_name} (${teacher.email})`
                         : teacher.email;
@@ -407,7 +407,7 @@ export function ClassManagement() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      {departments.map((dept) => (
+                      {(departments || []).map((dept) => (
                         <SelectItem key={dept.id} value={dept.name}>
                           {dept.name}
                         </SelectItem>
@@ -437,7 +437,7 @@ export function ClassManagement() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="unassigned">미배정</SelectItem>
-                      {teachers.map((teacher: Teacher) => {
+                      {(teachers || []).map((teacher: Teacher) => {
                         const teacherDisplayName = teacher.full_name
                           ? `${teacher.full_name} (${teacher.email})`
                           : teacher.email;
@@ -455,7 +455,7 @@ export function ClassManagement() {
                   <Label>교사 배정 (여러 명 선택 가능)</Label>
                   <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
                     <div className="space-y-2">
-                      {teachers.map((teacher: Teacher) => {
+                      {(teachers || []).map((teacher: Teacher) => {
                         const teacherDisplayName = teacher.full_name
                           ? `${teacher.full_name} (${teacher.email})`
                           : teacher.email;

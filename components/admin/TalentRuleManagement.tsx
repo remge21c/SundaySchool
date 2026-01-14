@@ -186,11 +186,11 @@ export function TalentRuleManagement() {
         <CardContent>
           {rulesLoading ? (
             <p className="text-gray-500">로딩 중...</p>
-          ) : rules.length === 0 ? (
+          ) : !rules || rules.length === 0 ? (
             <p className="text-gray-500">등록된 규칙이 없습니다.</p>
           ) : (
             <div className="space-y-3">
-              {rules.map((rule) => (
+              {(rules || []).map((rule) => (
                 <div
                   key={rule.id}
                   className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50"
