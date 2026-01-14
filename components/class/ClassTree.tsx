@@ -5,8 +5,10 @@
 
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useAllClasses } from '@/hooks/useClasses';
+import { useState, useMemo, useEffect } from 'react';
+import { useAllClasses, useClassesByTeacher } from '@/hooks/useClasses';
+import { useAuth } from '@/hooks/useAuth';
+import { isAdmin } from '@/lib/utils/auth';
 import type { Class, ClassGroup } from '@/types/class';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -39,7 +41,27 @@ function groupClassesByDepartment(classes: Class[]): ClassGroup[] {
 }
 
 export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
-  const { data: classes, isLoading, error } = useAllClasses(year);
+  const { user } = useAuth();
+  const [isAdminUser, setIsAdminUser] = useState<boolean | null>(null);
+
+  // 관리자 여부 확인
+  useEffect(() => {
+    if (user) {
+      isAdmin().then(setIsAdminUser);
+    }
+  }, [user]);
+
+  // 모든 반 조회 (관리자용)
+  const { data: allClasses, isLoading: allClassesLoading, error: allClassesError } = useAllClasses(year);
+
+  // 교사의 담당 반 조회 (교사용)
+  const { data: teacherClasses, isLoading: teacherClassesLoading, error: teacherClassesError } = useClassesByTeacher(user?.id, year);
+
+  // 관리자인지 여부에 따라 적절한 데이터 사용
+  const classes = isAdminUser === true ? allClasses : teacherClasses;
+  const isLoading = isAdminUser === null || (isAdminUser ? allClassesLoading : teacherClassesLoading);
+  const error = isAdminUser ? allClassesError : teacherClassesError;
+
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(
     new Set()
   );
@@ -49,6 +71,15 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
     if (!classes) return [];
     return groupClassesByDepartment(classes);
   }, [classes]);
+
+  // 교사의 담당 반이 있는 부서들을 자동으로 펼치기
+  useEffect(() => {
+    if (groupedClasses.length > 0 && expandedDepartments.size === 0) {
+      // 모든 부서를 기본으로 펼침
+      const allDepartments = new Set(groupedClasses.map(g => g.department));
+      setExpandedDepartments(allDepartments);
+    }
+  }, [groupedClasses, expandedDepartments.size]);
 
   // 부서 확장/축소 토글
   const toggleDepartment = (department: string) => {
@@ -84,7 +115,11 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
   if (!classes || classes.length === 0) {
     return (
       <div className="py-8 text-center">
-        <p className="text-sm text-gray-500">등록된 반이 없습니다.</p>
+        <p className="text-sm text-gray-500">
+          {isAdminUser === false
+            ? '배정된 반이 없습니다. 관리자에게 문의하세요.'
+            : '등록된 반이 없습니다.'}
+        </p>
       </div>
     );
   }
