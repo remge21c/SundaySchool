@@ -17,6 +17,7 @@ const mockStudent: Student = {
   school_name: null,
   address: null,
   allergies: null,
+  photo_url: null,
   created_at: '2025-01-01T00:00:00Z',
   updated_at: '2025-01-01T00:00:00Z',
 };
@@ -53,7 +54,7 @@ describe('AttendanceCard', () => {
     vi.clearAllMocks();
     mockCancelQueries.mockResolvedValue(undefined);
     mockGetQueryData.mockReturnValue(null);
-    
+
     const { useQuery, useMutation } = await import('@tanstack/react-query');
     vi.mocked(useQuery).mockReturnValue({
       data: null,

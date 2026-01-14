@@ -50,6 +50,7 @@ describe('StudentProfile', () => {
       parent_contact: '010-1234-5678',
       address: '서울시 강남구',
       allergies: null,
+      photo_url: null,
       is_active: true,
       class_id: 'class-456',
       created_at: '2024-01-01T00:00:00Z',
@@ -77,6 +78,7 @@ describe('StudentProfile', () => {
       parent_contact: '010-1234-5678',
       address: '서울시 강남구',
       allergies: null,
+      photo_url: null,
       is_active: true,
       class_id: 'class-456',
       created_at: '2024-01-01T00:00:00Z',
@@ -109,6 +111,7 @@ describe('StudentProfile', () => {
       parent_contact: '010-1234-5678',
       address: '서울시 강남구',
       allergies: mockAllergies,
+      photo_url: null,
       is_active: true,
       class_id: 'class-456',
       created_at: '2024-01-01T00:00:00Z',
@@ -139,6 +142,7 @@ describe('StudentProfile', () => {
       parent_contact: '010-1234-5678',
       address: '서울시 강남구',
       allergies: null,
+      photo_url: null,
       is_active: true,
       class_id: 'class-456',
       created_at: '2024-01-01T00:00:00Z',
@@ -157,7 +161,7 @@ describe('StudentProfile', () => {
 
   it('should show loading state when data is loading', () => {
     vi.mocked(studentsApi.getStudentProfile).mockImplementation(
-      () => new Promise(() => {}) // 무한 대기로 로딩 상태 유지
+      () => new Promise(() => { }) // 무한 대기로 로딩 상태 유지
     );
 
     renderWithQuery(<StudentProfile studentId="student-123" />);
@@ -187,6 +191,7 @@ describe('StudentProfile', () => {
       parent_contact: '010-1234-5678',
       address: '서울시 강남구',
       allergies: null,
+      photo_url: null,
       is_active: true,
       class_id: 'class-456',
       created_at: '2024-01-01T00:00:00Z',

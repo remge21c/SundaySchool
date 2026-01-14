@@ -1,0 +1,185 @@
+﻿
+> sunday-school-cms@0.1.0 build
+> next build
+
+   ??Next.js 15.5.9
+   - Environments: .env.local
+
+   Creating an optimized production build ...
+ ??Compiled successfully in 3.3s
+   Linting and checking validity of types ...
+
+./app/(dashboard)/students/page.tsx
+194:40  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:31  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+197:50  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/admin/BadgeManagement.tsx
+53:64  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+203:23  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/admin/ClassManagement.tsx
+129:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/admin/DepartmentManagement.tsx
+60:74  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/admin/TalentRuleManagement.tsx
+58:62  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/attendance/AttendanceCard.tsx
+137:82  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+241:15  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/auth/LoginForm.tsx
+9:8  Warning: 'Link' is defined but never used.  @typescript-eslint/no-unused-vars
+
+./components/student/BadgeCard.tsx
+75:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+105:25  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/student/StudentAddForm.tsx
+78:6  Warning: React Hook useEffect has a missing dependency: 'resetForm'. Either include it or remove the dependency array.  react-hooks/exhaustive-deps
+
+./components/student/StudentPhotoUpload.tsx
+63:22  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+130:13  Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element  @next/next/no-img-element
+
+./components/student/StudentProfile.tsx
+136:46  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./components/student/TalentCard.tsx
+63:40  Warning: 'isLoadingRules' is assigned a value but never used.  @typescript-eslint/no-unused-vars
+
+./lib/supabase/absence-alert.ts
+147:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/admin.ts
+16:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+41:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+75:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+95:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+126:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+149:35  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+150:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+172:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+197:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+212:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/attendance.ts
+115:23  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+307:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/auth.ts
+39:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+59:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/badges.ts
+7:15  Warning: 'Database' is defined but never used.  @typescript-eslint/no-unused-vars
+55:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+72:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+91:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+115:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+142:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+165:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+176:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+200:24  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+229:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/classes.ts
+82:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+111:25  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+123:32  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+140:63  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+147:27  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:36  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/departments.ts
+25:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+44:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+67:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+77:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+110:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+136:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+157:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+172:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+187:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+197:29  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/notes.ts
+54:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+79:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+116:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+140:31  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/settings.ts
+26:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+78:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/storage.ts
+58:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/students.ts
+60:18  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+145:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:71  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+211:19  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+238:26  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/talent.ts
+10:6  Warning: 'TalentTransactionInsert' is defined but never used.  @typescript-eslint/no-unused-vars
+52:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+78:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+103:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+126:37  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+148:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+166:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+222:21  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+233:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+257:30  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/supabase/visitation.ts
+38:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+115:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+147:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+171:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+196:33  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+219:34  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+./lib/utils/auth.ts
+24:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+61:28  Warning: Unexpected any. Specify a different type.  @typescript-eslint/no-explicit-any
+
+info  - Need to disable some ESLint rules? Learn more here: https://nextjs.org/docs/app/api-reference/config/eslint#disabling-rules
+   Collecting page data ...
+   Generating static pages (0/13) ...
+   Generating static pages (3/13) 
+   Generating static pages (6/13) 
+   Generating static pages (9/13) 
+ ??Generating static pages (13/13)
+   Finalizing page optimization ...
+   Collecting build traces ...
+
+Route (app)                                 Size  First Load JS
+????/                                       4 kB         167 kB
+????/_not-found                            993 B         103 kB
+????/admin                               11.9 kB         215 kB
+????/attendance                          5.58 kB         199 kB
+????/components-test                     3.34 kB         112 kB
+????/dashboard                           5.21 kB         184 kB
+????/icon.svg                                0 B            0 B
+????/login                                 457 B         103 kB
+????/onboarding                          3.33 kB         112 kB
+????/signup                              3.35 kB         166 kB
+????/students                            4.54 kB         217 kB
+??? /students/[id]                       14.7 kB         206 kB
++ First Load JS shared by all             102 kB
+  ??chunks/255-cb395327542b56ef.js       45.9 kB
+  ??chunks/4bd1b696-c023c6e3521b1417.js  54.2 kB
+  ??other shared chunks (total)          2.04 kB
+
+
+?? (Static)   prerendered as static content
+?  (Dynamic)  server-rendered on demand
+

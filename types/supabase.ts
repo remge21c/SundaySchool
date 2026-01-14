@@ -10,6 +10,10 @@ export type Json =
   | Json[];
 
 export interface Database {
+  __InternalSupabase: {
+    BroadcastPayload: Record<string, unknown>;
+    PostgrestError: unknown;
+  };
   public: {
     Tables: {
       profiles: {
@@ -58,6 +62,7 @@ export interface Database {
           parent_contact: string;
           address: string | null;
           allergies: Json | null;
+          photo_url: string | null;
           is_active: boolean;
           class_id: string;
           created_at: string;
@@ -73,6 +78,7 @@ export interface Database {
           parent_contact: string;
           address?: string | null;
           allergies?: Json | null;
+          photo_url?: string | null;
           is_active?: boolean;
           class_id: string;
           created_at?: string;
@@ -88,6 +94,7 @@ export interface Database {
           parent_contact?: string;
           address?: string | null;
           allergies?: Json | null;
+          photo_url?: string | null;
           is_active?: boolean;
           class_id?: string;
           created_at?: string;

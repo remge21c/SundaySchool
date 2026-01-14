@@ -106,12 +106,13 @@ export async function getAttendanceLogByStudentAndDate(
   studentId: string,
   date: string
 ): Promise<AttendanceLog | null> {
-  const { data, error } = await supabase
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
     .from('attendance_logs')
     .select('*')
     .eq('student_id', studentId)
     .eq('date', date)
-    .maybeSingle();
+    .maybeSingle() as any);
 
   if (error) {
     throw error;
