@@ -75,7 +75,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
   ];
 
   // 관리자가 아닌 경우 관리자 메뉴 필터링
-  const visibleNavItems = navItems.filter(
+  const visibleNavItems = (navItems || []).filter(
     (item) => !item.adminOnly || isAdminUser
   );
 
@@ -110,7 +110,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
 
           {/* 네비게이션 아이템 */}
           <nav className="flex-1 p-4 space-y-2">
-            {visibleNavItems.map((item, index) => {
+            {(visibleNavItems || []).map((item, index) => {
               const isActive = currentPath === item.path;
               return (
                 <button
