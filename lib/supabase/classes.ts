@@ -124,7 +124,16 @@ export async function getClassesByTeacher(
     .select('class_id')
     .eq('teacher_id', teacherId));
 
+  // class_teachers 테이블이 아직 생성되지 않은 경우 (404 오류) 빈 배열로 처리
   if (classTeachersError) {
+    // 404 오류 (테이블이 없음) 또는 테이블이 존재하지 않는 경우 빈 배열로 처리
+    if (classTeachersError.code === 'PGRST116' || 
+        classTeachersError.message?.includes('404') || 
+        classTeachersError.message?.includes('relation') || 
+        classTeachersError.message?.includes('does not exist')) {
+      // 테이블이 아직 생성되지 않았으므로 빈 배열 반환
+      return (mainTeacherClasses ?? []) as Class[];
+    }
     throw classTeachersError;
   }
 

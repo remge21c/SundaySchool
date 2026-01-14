@@ -148,31 +148,60 @@ export async function assignTeachersToClass(
   classId: string,
   teacherIds: string[]
 ): Promise<void> {
-  // 기존 배정 삭제
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error: deleteError } = await ((supabase
-    .from('class_teachers') as any)
-    .delete()
-    .eq('class_id', classId));
-
-  if (deleteError) {
-    throw deleteError;
-  }
-
-  // 새 배정 추가
-  if (teacherIds.length > 0) {
-    const insertData = teacherIds.map((teacherId) => ({
-      class_id: classId,
-      teacher_id: teacherId,
-    }));
-
+  // class_teachers 테이블이 아직 생성되지 않은 경우 에러를 무시하고 조용히 종료
+  // (마이그레이션 전 상태에서도 앱이 정상 작동하도록)
+  try {
+    // 기존 배정 삭제
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { error: insertError } = await ((supabase
+    const { error: deleteError } = await ((supabase
       .from('class_teachers') as any)
-      .insert(insertData));
+      .delete()
+      .eq('class_id', classId));
 
-    if (insertError) {
-      throw insertError;
+    // 테이블이 없으면 조용히 종료 (마이그레이션 전 상태)
+    if (deleteError) {
+      if (deleteError.code === 'PGRST116' || 
+          deleteError.message?.includes('404') || 
+          deleteError.message?.includes('relation') || 
+          deleteError.message?.includes('does not exist')) {
+        console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
+        return;
+      }
+      throw deleteError;
     }
+
+    // 새 배정 추가
+    if (teacherIds.length > 0) {
+      const insertData = teacherIds.map((teacherId) => ({
+        class_id: classId,
+        teacher_id: teacherId,
+      }));
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: insertError } = await ((supabase
+        .from('class_teachers') as any)
+        .insert(insertData));
+
+      if (insertError) {
+        // 테이블이 없으면 조용히 종료
+        if (insertError.code === 'PGRST116' || 
+            insertError.message?.includes('404') || 
+            insertError.message?.includes('relation') || 
+            insertError.message?.includes('does not exist')) {
+          console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
+          return;
+        }
+        throw insertError;
+      }
+    }
+  } catch (error: any) {
+    // 예상치 못한 에러인 경우에만 throw
+    if (error?.message?.includes('404') || 
+        error?.message?.includes('relation') || 
+        error?.message?.includes('does not exist')) {
+      console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
+      return;
+    }
+    throw error;
   }
 }
