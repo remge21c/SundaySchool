@@ -91,7 +91,7 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
 
   return (
     <div className="space-y-1">
-      {groupedClasses.map((group) => {
+      {(groupedClasses || []).map((group) => {
         const isExpanded = expandedDepartments.has(group.department);
 
         return (
@@ -120,7 +120,7 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
             {/* 반 목록 */}
             {isExpanded && (
               <div className="ml-6 space-y-1">
-                {group.classes.map((cls) => {
+                {(group.classes || []).map((cls) => {
                   const isSelected = selectedClassId === cls.id;
 
                   return (

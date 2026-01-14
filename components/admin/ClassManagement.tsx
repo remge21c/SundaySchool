@@ -532,10 +532,12 @@ function ClassCard({
   });
 
   const mainTeacherName = getTeacherName(cls.main_teacher_id);
-  const otherTeacherNames = (classTeacherIds || [])
-    .filter((id) => id && id !== cls.main_teacher_id)
-    .map((id) => getTeacherName(id))
-    .filter((name) => name && name !== '미배정');
+  const otherTeacherNames = Array.isArray(classTeacherIds)
+    ? classTeacherIds
+        .filter((id) => id && id !== cls.main_teacher_id)
+        .map((id) => getTeacherName(id))
+        .filter((name) => name && name !== '미배정')
+    : [];
 
   return (
     <Card>
