@@ -51,7 +51,7 @@ export async function createAttendanceLog(
     throw new Error('출석 기록 생성에 실패했습니다.');
   }
 
-  return data as AttendanceLog;
+  return data as unknown as AttendanceLog;
 }
 
 /**
@@ -116,7 +116,7 @@ export async function getAttendanceLogByStudentAndDate(
     throw error;
   }
 
-  return data ? (data as AttendanceLog) : null;
+  return data ? (data as unknown as AttendanceLog) : null;
 }
 
 /**
@@ -150,7 +150,7 @@ export async function updateAttendanceLog(
     throw new Error('출석 기록 업데이트에 실패했습니다.');
   }
 
-  return data as AttendanceLog;
+  return data as unknown as AttendanceLog;
 }
 
 /**
