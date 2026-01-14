@@ -127,7 +127,7 @@ export function TalentCard({ studentId }: TalentCardProps) {
             <div>
               <p className="text-sm font-medium text-gray-700 mb-2">포인트 지급</p>
               <div className="grid grid-cols-2 gap-2">
-                {approvalRules.map((rule) => (
+                {(approvalRules || []).map((rule) => (
                   <Button
                     key={rule.id}
                     variant="outline"
@@ -151,7 +151,7 @@ export function TalentCard({ studentId }: TalentCardProps) {
               <p className="text-sm text-gray-500">로딩 중...</p>
             ) : transactions.length > 0 ? (
               <div className="space-y-2">
-                {transactions.map((transaction) => {
+                {(transactions || []).map((transaction) => {
                   // 출석 항목인 경우 이번주 일요일 날짜로 표시
                   const displayDate =
                     transaction.category === '출석'

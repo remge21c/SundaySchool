@@ -72,7 +72,7 @@ export function RecentVisitations({ className }: RecentVisitationsProps) {
           <div className="text-center py-4 text-gray-500">심방 기록이 없습니다.</div>
         ) : (
           <div className="space-y-4">
-            {visitations.map((visitation) => {
+            {(visitations || []).map((visitation) => {
               const typeInfo = getVisitationTypeInfo(visitation.type);
               const Icon = typeInfo.icon;
               const visitDate = format(new Date(visitation.visit_date), 'yyyy년 M월 d일', {
