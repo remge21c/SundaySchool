@@ -108,12 +108,18 @@ export function ClassManagement() {
 
   // 편집 중인 반이 변경되면 배정된 교사 목록 로드
   useEffect(() => {
-    if (editingClass && classTeachers) {
-      setSelectedTeacherIds(new Set(classTeachers));
+    if (editingClass) {
+      // classTeachers가 배열인 경우에만 Set으로 변환
+      if (Array.isArray(classTeachers) && classTeachers.length > 0) {
+        setSelectedTeacherIds(new Set(classTeachers));
+      } else {
+        setSelectedTeacherIds(new Set());
+      }
     } else {
       setSelectedTeacherIds(new Set());
     }
-  }, [editingClass, classTeachers]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editingClass?.id, JSON.stringify(classTeachers)]);
 
   // 반 생성
   const createMutation = useMutation({
@@ -359,7 +365,7 @@ export function ClassManagement() {
                       const teacherDisplayName = teacher.full_name
                         ? `${teacher.full_name} (${teacher.email})`
                         : teacher.email;
-                      
+
                       return (
                         <SelectItem key={teacher.id} value={teacher.id}>
                           {teacherDisplayName}
@@ -441,7 +447,7 @@ export function ClassManagement() {
                         const teacherDisplayName = teacher.full_name
                           ? `${teacher.full_name} (${teacher.email})`
                           : teacher.email;
-                        
+
                         return (
                           <SelectItem key={teacher.id} value={teacher.id}>
                             {teacherDisplayName}
@@ -460,7 +466,7 @@ export function ClassManagement() {
                           ? `${teacher.full_name} (${teacher.email})`
                           : teacher.email;
                         const isChecked = selectedTeacherIds.has(teacher.id);
-                        
+
                         return (
                           <div key={teacher.id} className="flex items-center space-x-2">
                             <input
@@ -534,9 +540,9 @@ function ClassCard({
   const mainTeacherName = getTeacherName(cls.main_teacher_id);
   const otherTeacherNames = Array.isArray(classTeacherIds)
     ? classTeacherIds
-        .filter((id) => id && id !== cls.main_teacher_id)
-        .map((id) => getTeacherName(id))
-        .filter((name) => name && name !== '미배정')
+      .filter((id) => id && id !== cls.main_teacher_id)
+      .map((id) => getTeacherName(id))
+      .filter((name) => name && name !== '미배정')
     : [];
 
   return (
