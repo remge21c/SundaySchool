@@ -1,10 +1,22 @@
--- RLS 정책 업데이트: class_teachers 테이블을 참조하도록 수정
--- 여러 교사가 한 반을 담당할 수 있도록 지원
--- 
--- 주의: 이 마이그레이션은 024_create_class_teachers_table.sql이 먼저 실행되어야 합니다.
--- class_teachers 테이블이 없으면 에러가 발생할 수 있으므로, 먼저 024를 실행하세요.
+-- RLS 정책 안전하게 수정: class_teachers 테이블이 없어도 작동하도록
+-- pg_catalog.pg_tables 사용 대신 더 안전한 방법 사용
 
--- 1. classes 테이블 SELECT 정책 업데이트
+-- PostgreSQL 함수: class_teachers 테이블 존재 여부 확인
+CREATE OR REPLACE FUNCTION public.table_exists(table_name text)
+RETURNS boolean
+LANGUAGE plpgsql
+STABLE
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_tables
+    WHERE schemaname = 'public' AND tablename = table_name
+  );
+END;
+$$;
+
+-- 1. classes 테이블 SELECT 정책 업데이트 (더 안전한 방법)
 DROP POLICY IF EXISTS "Teachers can view their own classes" ON classes;
 CREATE POLICY "Teachers can view their own classes"
 ON classes FOR SELECT
@@ -12,8 +24,8 @@ TO authenticated
 USING (
   main_teacher_id = auth.uid()
   OR (
-    -- class_teachers 테이블이 존재하는 경우에만 체크 (에러 방지)
-    EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'class_teachers')
+    -- class_teachers 테이블이 존재하는 경우에만 체크
+    public.table_exists('class_teachers')
     AND id IN (
       SELECT class_id FROM class_teachers
       WHERE teacher_id = auth.uid()
@@ -35,8 +47,7 @@ USING (
     SELECT id FROM classes
     WHERE main_teacher_id = auth.uid()
     OR (
-      -- class_teachers 테이블이 존재하는 경우에만 체크
-      EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'class_teachers')
+      public.table_exists('class_teachers')
       AND id IN (
         SELECT class_id FROM class_teachers
         WHERE teacher_id = auth.uid()
@@ -59,8 +70,7 @@ USING (
     SELECT id FROM classes
     WHERE main_teacher_id = auth.uid()
     OR (
-      -- class_teachers 테이블이 존재하는 경우에만 체크
-      EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'class_teachers')
+      public.table_exists('class_teachers')
       AND id IN (
         SELECT class_id FROM class_teachers
         WHERE teacher_id = auth.uid()
@@ -73,8 +83,7 @@ USING (
   )
 );
 
--- 4. visitation_logs 테이블 SELECT 정책 업데이트 (INSERT 정책은 기존 정책 유지)
--- SELECT 정책은 이미 전체 비밀유지 제외로 변경되어 있지만, INSERT 정책은 업데이트 필요
+-- 4. visitation_logs 테이블 INSERT 정책 업데이트
 DROP POLICY IF EXISTS "Teachers can create visitations" ON visitation_logs;
 CREATE POLICY "Teachers can create visitations"
 ON visitation_logs FOR INSERT
@@ -86,8 +95,7 @@ WITH CHECK (
       SELECT id FROM classes
       WHERE main_teacher_id = auth.uid()
       OR (
-        -- class_teachers 테이블이 존재하는 경우에만 체크
-        EXISTS (SELECT 1 FROM pg_catalog.pg_tables WHERE schemaname = 'public' AND tablename = 'class_teachers')
+        public.table_exists('class_teachers')
         AND id IN (
           SELECT class_id FROM class_teachers
           WHERE teacher_id = auth.uid()

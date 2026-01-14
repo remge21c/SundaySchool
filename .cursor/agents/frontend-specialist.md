@@ -1,8 +1,3 @@
----
-name: frontend-specialist
-model: fast
----
-
 # Frontend Specialist (프론트엔드 전문가) - 차세대 주일학교 교적부
 
 > UI 컴포넌트, 상태 관리, Supabase 통합 전문가

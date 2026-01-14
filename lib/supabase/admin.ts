@@ -120,23 +120,38 @@ export async function assignTeacherToClass(
  * @returns 교사 ID 배열
  */
 export async function getClassTeachers(classId: string): Promise<string[]> {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await ((supabase
-    .from('class_teachers') as any)
-    .select('teacher_id')
-    .eq('class_id', classId));
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await ((supabase
+      .from('class_teachers') as any)
+      .select('teacher_id')
+      .eq('class_id', classId));
 
-  // 테이블이 아직 생성되지 않았거나 404 오류인 경우 빈 배열 반환
-  if (error) {
-    // 404 오류 (테이블이 없음) 또는 PGRST116 (레코드 없음)인 경우 빈 배열 반환
-    if (error.code === 'PGRST116' || error.message?.includes('404') || error.message?.includes('relation') || error.message?.includes('does not exist')) {
-      return [];
+    // 테이블이 아직 생성되지 않았거나 404/500 오류인 경우 빈 배열 반환
+    if (error) {
+      // 404 오류 (테이블이 없음), 500 오류 (RLS 정책 문제), 또는 PGRST116 (레코드 없음)인 경우 빈 배열 반환
+      if (
+        error.code === 'PGRST116' ||
+        error.code === '42P01' || // relation does not exist
+        error.message?.includes('404') ||
+        error.message?.includes('500') ||
+        error.message?.includes('relation') ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('Internal Server Error')
+      ) {
+        console.warn('class_teachers 테이블 조회 실패 (테이블이 없거나 RLS 정책 문제):', error.message);
+        return [];
+      }
+      // 다른 오류는 그대로 throw
+      throw error;
     }
-    // 다른 오류는 그대로 throw
-    throw error;
-  }
 
-  return (data ?? []).map((row: any) => row.teacher_id);
+    return (data ?? []).map((row: any) => row.teacher_id);
+  } catch (error: any) {
+    // 예상치 못한 에러도 빈 배열 반환 (컴포넌트가 크래시되지 않도록)
+    console.warn('getClassTeachers 에러:', error);
+    return [];
+  }
 }
 
 /**

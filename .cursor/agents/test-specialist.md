@@ -1,7 +1,3 @@
----
-name: test-specialist
-model: fast
----
 
 # Test Specialist (테스트 전문가) - 차세대 주일학교 교적부
 

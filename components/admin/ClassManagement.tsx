@@ -92,11 +92,18 @@ export function ClassManagement() {
   // 반에 배정된 교사 목록 조회
   const { data: classTeachers = [] } = useQuery({
     queryKey: ['class-teachers', editingClass?.id],
-    queryFn: () => {
+    queryFn: async () => {
       if (!editingClass?.id) return [];
-      return getClassTeachers(editingClass.id);
+      try {
+        return await getClassTeachers(editingClass.id);
+      } catch (error) {
+        // class_teachers 테이블이 없거나 에러가 발생하면 빈 배열 반환
+        console.warn('교사 배정 정보를 불러올 수 없습니다:', error);
+        return [];
+      }
     },
     enabled: !!editingClass?.id,
+    retry: false, // 에러 발생 시 재시도하지 않음
   });
 
   // 편집 중인 반이 변경되면 배정된 교사 목록 로드
@@ -514,19 +521,21 @@ function ClassCard({
       try {
         return await getClassTeachers(cls.id);
       } catch (error) {
-        // 에러 발생 시 빈 배열 반환 (테이블이 아직 생성되지 않은 경우)
+        // 에러 발생 시 빈 배열 반환 (테이블이 아직 생성되지 않았거나 RLS 정책 문제)
+        console.warn(`반 ${cls.id}의 교사 배정 정보를 불러올 수 없습니다:`, error);
         return [];
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: false, // 404 오류는 재시도하지 않음
+    retry: false, // 에러 발생 시 재시도하지 않음
+    refetchOnWindowFocus: false, // 윈도우 포커스 시 재조회하지 않음
   });
 
   const mainTeacherName = getTeacherName(cls.main_teacher_id);
-  const otherTeacherNames = classTeacherIds
-    .filter((id) => id !== cls.main_teacher_id)
+  const otherTeacherNames = (classTeacherIds || [])
+    .filter((id) => id && id !== cls.main_teacher_id)
     .map((id) => getTeacherName(id))
-    .filter((name) => name !== '미배정');
+    .filter((name) => name && name !== '미배정');
 
   return (
     <Card>
