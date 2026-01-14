@@ -62,7 +62,8 @@ export async function createAttendanceLog(
 export async function getAttendanceLogs(
   params: GetAttendanceLogsParams = {}
 ): Promise<AttendanceLog[]> {
-  let query = supabase.from('attendance_logs').select('*');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let query = (supabase.from('attendance_logs').select('*') as any);
 
   if (params.student_id) {
     query = query.eq('student_id', params.student_id);
@@ -86,7 +87,7 @@ export async function getAttendanceLogs(
 
   query = query.order('date', { ascending: false });
 
-  const { data, error } = await (query as any);
+  const { data, error } = await query;
 
   if (error) {
     throw error;
