@@ -142,10 +142,11 @@ export async function getLongTermAbsentStudentsByTeacher(
 ): Promise<LongTermAbsentStudent[]> {
   // 교사가 담당하는 반 목록 조회
   // RLS 정책에 따라 admin은 모든 반을 볼 수 있고, 일반 교사는 자신의 반만 볼 수 있음
-  const { data: classes, error } = await supabase
-    .from('classes')
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: classes, error } = await ((supabase
+    .from('classes') as any)
     .select('id')
-    .eq('year', new Date().getFullYear());
+    .eq('year', new Date().getFullYear()));
 
   // 에러 발생 시 빈 배열 반환 (RLS 정책 문제나 권한 문제)
   if (error) {
