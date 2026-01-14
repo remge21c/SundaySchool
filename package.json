@@ -15,6 +15,9 @@
     "format:check": "prettier --check .",
     "check:supabase": "tsx scripts/check-supabase.ts",
     "verify:schema": "tsx scripts/verify-schema.ts",
+    "migrate": "tsx scripts/run-migrations.ts",
+    "migrate:list": "tsx scripts/run-migrations.ts list",
+    "migrate:key": "tsx scripts/run-migrations.ts key",
     "gen:types": "supabase gen types typescript --project-id $SUPABASE_PROJECT_ID > types/supabase.ts",
     "create-admin": "tsx scripts/create-admin.ts",
     "seed-test-data": "tsx scripts/seed-test-data.ts"
