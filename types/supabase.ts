@@ -108,6 +108,7 @@ export interface Database {
           department: string;
           year: number;
           main_teacher_id: string;
+          is_active: boolean;
           created_at: string;
         };
         Insert: {
@@ -116,6 +117,7 @@ export interface Database {
           department: string;
           year: number;
           main_teacher_id: string;
+          is_active?: boolean;
           created_at?: string;
         };
         Update: {
@@ -124,6 +126,123 @@ export interface Database {
           department?: string;
           year?: number;
           main_teacher_id?: string;
+          is_active?: boolean;
+          created_at?: string;
+        };
+      };
+      class_assignments: {
+        Row: {
+          id: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          start_date: string;
+          end_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          start_date: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          class_id?: string;
+          year?: number;
+          start_date?: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+      };
+      student_grade_history: {
+        Row: {
+          id: string;
+          student_id: string;
+          year: number;
+          grade: number;
+          school_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          year: number;
+          grade: number;
+          school_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          year?: number;
+          grade?: number;
+          school_name?: string | null;
+          created_at?: string;
+        };
+      };
+      temp_class_assignments: {
+        Row: {
+          id: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          assigned_by: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          assigned_by?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          class_id?: string;
+          year?: number;
+          assigned_by?: string | null;
+          created_at?: string;
+        };
+      };
+      year_transition_log: {
+        Row: {
+          id: string;
+          from_year: number;
+          to_year: number;
+          status: 'pending' | 'in_progress' | 'completed' | 'failed';
+          classes_created: number;
+          students_assigned: number;
+          executed_by: string | null;
+          executed_at: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_year: number;
+          to_year: number;
+          status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+          classes_created?: number;
+          students_assigned?: number;
+          executed_by?: string | null;
+          executed_at?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_year?: number;
+          to_year?: number;
+          status?: 'pending' | 'in_progress' | 'completed' | 'failed';
+          classes_created?: number;
+          students_assigned?: number;
+          executed_by?: string | null;
+          executed_at?: string | null;
           created_at?: string;
         };
       };
