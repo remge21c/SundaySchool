@@ -12,6 +12,7 @@ import { isAdmin } from '@/lib/utils/auth';
 import type { Class, ClassGroup } from '@/types/class';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { DEPARTMENT_ORDER } from '@/lib/constants';
 
 interface ClassTreeProps {
   onSelect: (classId: string) => void;
@@ -37,7 +38,28 @@ function groupClassesByDepartment(classes: Class[]): ClassGroup[] {
       department,
       classes: classes.sort((a, b) => a.name.localeCompare(b.name)),
     }))
-    .sort((a, b) => a.department.localeCompare(b.department));
+    .sort((a, b) => {
+      const indexA = DEPARTMENT_ORDER.indexOf(a.department);
+      const indexB = DEPARTMENT_ORDER.indexOf(b.department);
+
+      // 둘 다 순서 목록에 있으면 순서대로 정렬
+      if (indexA !== -1 && indexB !== -1) {
+        return indexA - indexB;
+      }
+
+      // A만 목록에 있으면 A를 앞으로
+      if (indexA !== -1) {
+        return -1;
+      }
+
+      // B만 목록에 있으면 B를 앞으로
+      if (indexB !== -1) {
+        return 1;
+      }
+
+      // 둘 다 목록에 없으면 이름순 정렬
+      return a.department.localeCompare(b.department);
+    });
 }
 
 export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
