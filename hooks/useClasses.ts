@@ -62,6 +62,19 @@ export function useClass(classId: string | null | undefined) {
 }
 
 /**
+ * 부서 목록 조회 훅 (정렬됨)
+ * @param year 연도 (선택)
+ */
+export function useDepartments(year?: number) {
+  return useQuery({
+    queryKey: ['departments', year],
+    queryFn: () => getDepartments(year),
+    staleTime: 10 * 60 * 1000,
+    gcTime: 20 * 60 * 1000,
+  });
+}
+
+/**
  * 교사의 담당 반 조회 훅
  * @param teacherId 교사 ID
  * @param year 연도 (선택)
@@ -81,15 +94,4 @@ export function useClassesByTeacher(teacherId: string | null | undefined, year?:
   });
 }
 
-/**
- * 부서 목록 조회 훅
- * @param year 연도 (선택)
- */
-export function useDepartments(year?: number) {
-  return useQuery({
-    queryKey: ['classes', 'departments', year],
-    queryFn: () => getDepartments(year),
-    staleTime: 5 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-  });
-}
+

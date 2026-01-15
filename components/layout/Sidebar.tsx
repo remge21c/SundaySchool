@@ -94,12 +94,6 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       adminOnly: true,
       departmentScopeAllowed: true, // 부서 전체 권한자도 접근 가능
     },
-    {
-      label: '학년도 전환',
-      path: '/admin/year-transition',
-      icon: <CalendarClock className="h-5 w-5" />,
-      adminOnly: true,
-    },
   ];
 
   // 메뉴 필터링: admin이거나, departmentScopeAllowed이고 hasDepartmentScope인 경우 표시

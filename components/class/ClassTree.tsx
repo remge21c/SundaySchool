@@ -226,10 +226,13 @@ export function ClassTree({
                         isSelected && 'bg-primary/10 text-primary font-medium'
                       )}
                     >
-                      <span className="flex-1">
-                        {cls.name}
+                      <span className="flex-1 flex items-center gap-2">
+                        <span>{cls.name}</span>
+                        {cls.name === '미배정' && (cls.student_count || 0) > 0 && (
+                          <span className="flex h-2 w-2 rounded-full bg-red-500" title="미배정 학생 있음" />
+                        )}
                         {cls.student_count !== undefined && (
-                          <span className="ml-1 text-xs text-gray-400">
+                          <span className="ml-auto text-xs text-gray-400">
                             ({cls.student_count}명)
                           </span>
                         )}

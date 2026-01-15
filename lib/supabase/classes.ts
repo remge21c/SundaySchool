@@ -208,29 +208,36 @@ export async function getClassesByTeacher(
  * @returns 부서명 배열
  */
 export async function getDepartments(year?: number): Promise<string[]> {
-  let query = supabase.from('classes').select('department');
-
-  // 연도 필터
-  if (year) {
-    query = query.eq('year', year);
-  } else {
-    const currentYear = new Date().getFullYear();
-    query = query.eq('year', currentYear);
-  }
-
+  // departments 테이블에서 순서대로 가져오기
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (query as any);
+  const { data: departments, error } = await ((supabase
+    .from('departments') as any)
+    .select('name')
+    .order('sort_order', { ascending: true }));
 
   if (error) {
-    throw error;
+    console.error('부서 목록 조회 실패 (departments 테이블):', error);
+
+    // 폴백: departments 테이블 조회가 실패하면 기존 로직 사용 (classes에서 추출)
+    let query = supabase.from('classes').select('department');
+    if (year) {
+      query = query.eq('year', year);
+    } else {
+      const currentYear = new Date().getFullYear();
+      query = query.eq('year', currentYear);
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error: classError } = await (query as any);
+
+    if (classError) throw classError;
+
+    return Array.from(
+      new Set((data ?? []).map((row: any) => row.department))
+    ).sort() as string[];
   }
 
-  // 중복 제거 및 정렬
-  const departments = Array.from(
-    new Set((data ?? []).map((row: any) => row.department))
-  ).sort() as string[];
-
-  return departments;
+  return departments.map((d: any) => d.name) as string[];
 }
 
 /**
@@ -255,4 +262,50 @@ export async function moveClassesToDepartment(
     console.error(`Error moving classes from ${oldDepartment} to ${newDepartment}:`, error);
     throw error;
   }
+}
+
+/**
+ * 부서의 미배정 반 조회 또는 생성
+ * @param department 부서명
+ * @returns 미배정 반 정보
+ */
+export async function getOrCreateUnassignedClass(department: string): Promise<Class> {
+  const currentYear = new Date().getFullYear();
+
+  // 미배정 반 조회
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: existingClass, error: selectError } = await ((supabase
+    .from('classes') as any)
+    .select('*')
+    .eq('department', department)
+    .eq('name', '미배정')
+    .eq('year', currentYear)
+    .maybeSingle());
+
+  if (selectError) {
+    throw selectError;
+  }
+
+  if (existingClass) {
+    return existingClass as Class;
+  }
+
+  // 미배정 반이 없으면 생성
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: newClass, error: insertError } = await ((supabase
+    .from('classes') as any)
+    .insert({
+      name: '미배정',
+      department,
+      year: currentYear,
+      // grade_level 컬럼 없음
+    })
+    .select()
+    .single());
+
+  if (insertError) {
+    throw insertError;
+  }
+
+  return newClass as Class;
 }

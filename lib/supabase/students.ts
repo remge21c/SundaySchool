@@ -18,7 +18,7 @@ type StudentUpdate = Database['public']['Tables']['students']['Update'];
  */
 export async function getStudentsByClass(
   classId: string,
-  params: Omit<GetStudentsParams, 'class_id'> = {}
+  params: Omit<GetStudentsParams, 'class_id'> & { grade?: number | null } = {}
 ): Promise<Student[]> {
   let query = supabase.from('students').select('*');
 
@@ -29,9 +29,19 @@ export async function getStudentsByClass(
   const isActive = params.is_active !== undefined ? params.is_active : true;
   query = query.eq('is_active', isActive);
 
+  // 졸업하지 않은 학생만 조회 (활성 상태일 때)
+  if (isActive) {
+    query = query.is('graduation_year', null);
+  }
+
   // 이름 검색
   if (params.search) {
     query = query.ilike('name', `%${params.search}%`);
+  }
+
+  // 학년 필터
+  if (params.grade) {
+    query = query.eq('grade', params.grade);
   }
 
   // 이름 순 정렬
@@ -55,7 +65,7 @@ export async function getStudentsByClass(
  */
 export async function getStudentsByDepartment(
   departmentName: string,
-  params: Omit<GetStudentsParams, 'class_id'> = {}
+  params: Omit<GetStudentsParams, 'class_id'> & { grade?: number | null } = {}
 ): Promise<Student[]> {
   // students와 classes를 조인하여 부서로 필터링
   let query = supabase
@@ -67,9 +77,19 @@ export async function getStudentsByDepartment(
   const isActive = params.is_active !== undefined ? params.is_active : true;
   query = query.eq('is_active', isActive);
 
+  // 졸업하지 않은 학생만 조회 (활성 상태일 때)
+  if (isActive) {
+    query = query.is('graduation_year', null);
+  }
+
   // 이름 검색
   if (params.search) {
     query = query.ilike('name', `%${params.search}%`);
+  }
+
+  // 학년 필터
+  if (params.grade) {
+    query = query.eq('grade', params.grade);
   }
 
   // 이름 순 정렬
@@ -114,10 +134,11 @@ export async function getStudentById(studentId: string): Promise<Student | null>
 
 /**
  * 모든 활성 학생 조회
+ * @param params 필터 조건
  * @returns 학생 배열
  */
 export async function getAllStudents(
-  params: Omit<GetStudentsParams, 'class_id'> = {}
+  params: Omit<GetStudentsParams, 'class_id'> & { grade?: number | null } = {}
 ): Promise<Student[]> {
   let query = supabase.from('students').select('*');
 
@@ -125,9 +146,19 @@ export async function getAllStudents(
   const isActive = params.is_active !== undefined ? params.is_active : true;
   query = query.eq('is_active', isActive);
 
+  // 졸업하지 않은 학생만 조회 (활성 상태일 때)
+  if (isActive) {
+    query = query.is('graduation_year', null);
+  }
+
   // 이름 검색
   if (params.search) {
     query = query.ilike('name', `%${params.search}%`);
+  }
+
+  // 학년 필터
+  if (params.grade) {
+    query = query.eq('grade', params.grade);
   }
 
   // 이름 순 정렬
@@ -141,6 +172,126 @@ export async function getAllStudents(
   }
 
   return (data ?? []) as Student[];
+}
+
+/**
+ * 학생 일괄 반 이동
+ * @param studentIds 이동할 학생 ID 배열
+ * @param targetClassId 이동할 반 ID
+ */
+export async function updateStudentsClass(studentIds: string[], targetClassId: string): Promise<void> {
+  const { error } = await supabase
+    .from('students')
+    .update({ class_id: targetClassId, updated_at: new Date().toISOString() } as any)
+    .in('id', studentIds);
+
+  if (error) throw error;
+}
+
+/**
+ * 학생 일괄 졸업 처리 (대학부 → 청년부)
+ * @param studentIds 졸업할 학생 ID 배열
+ * @param graduationYear 졸업 연도
+ * @param targetClassId 청년부 미배정 반 ID
+ */
+export async function graduateStudents(
+  studentIds: string[],
+  graduationYear: number,
+  targetClassId?: string
+): Promise<void> {
+  const updateData: any = {
+    graduation_year: graduationYear,
+    updated_at: new Date().toISOString()
+  };
+
+  // 청년부로 이동하는 경우 (대학부 졸업)
+  if (targetClassId) {
+    updateData.class_id = targetClassId;
+    // 청년부에서는 is_active 유지 (계속 관리)
+  } else {
+    // 이전 방식: 단순 비활성화
+    updateData.is_active = false;
+  }
+
+  const { error } = await supabase
+    .from('students')
+    .update(updateData)
+    .in('id', studentIds);
+
+  if (error) throw error;
+}
+
+/**
+ * 학생 일괄 삭제 (영구 삭제)
+ * @param studentIds 삭제할 학생 ID 배열
+ */
+export async function deleteStudents(studentIds: string[]): Promise<void> {
+  const { error } = await supabase
+    .from('students')
+    .delete()
+    .in('id', studentIds);
+
+  if (error) throw error;
+}
+
+/**
+ * 학생 부서 이동 (미배정 반으로)
+ * @param studentIds 이동할 학생 ID 배열
+ * @param targetClassId 대상 부서의 미배정 반 ID
+ */
+export async function transferStudentsToDepartment(
+  studentIds: string[],
+  targetClassId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from('students')
+    .update({
+      class_id: targetClassId,
+      grade: 0, // 미배정 상태로 학년 초기화
+      updated_at: new Date().toISOString()
+    } as any)
+    .in('id', studentIds);
+
+  if (error) throw error;
+}
+
+/**
+ * 학생 학년 승급
+ * @param studentIds 승급할 학생 ID 배열
+ * @returns 승급된 학생 수
+ */
+export async function promoteStudentsGrade(studentIds: string[]): Promise<number> {
+  // 먼저 학생 정보 조회
+  const { data: students, error: selectError } = await supabase
+    .from('students')
+    .select('id, grade')
+    .in('id', studentIds);
+
+  if (selectError) throw selectError;
+
+  // 학년별로 그룹화하여 승급 (6학년 제외, 0학년→1학년)
+  let promotedCount = 0;
+
+  for (const student of students || []) {
+    const currentGrade = student.grade || 0;
+
+    // 6학년은 승급 불가 (졸업 대상)
+    if (currentGrade >= 6) continue;
+
+    // 0학년(미배정) → 1학년, 그 외 +1
+    const newGrade = currentGrade === 0 ? 1 : currentGrade + 1;
+
+    const { error: updateError } = await supabase
+      .from('students')
+      .update({ grade: newGrade, updated_at: new Date().toISOString() } as any)
+      .eq('id', student.id);
+
+    if (!updateError) {
+      promotedCount++;
+    }
+  }
+
+  return promotedCount;
 }
 
 /**
@@ -269,17 +420,14 @@ export async function updateStudentPhoto(
 }
 
 /**
- * 학생 삭제 (소프트 삭제: is_active = false)
+ * 학생 삭제 (영구 삭제)
  * @param studentId 학생 ID
  */
 export async function deleteStudent(studentId: string): Promise<void> {
-  const updateData = { is_active: false, updated_at: new Date().toISOString() };
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { error } = await ((supabase
-    .from('students') as any)
-    .update(updateData)
-    .eq('id', studentId));
+  const { error } = await supabase
+    .from('students')
+    .delete()
+    .eq('id', studentId);
 
   if (error) {
     throw error;

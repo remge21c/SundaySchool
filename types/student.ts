@@ -21,6 +21,7 @@ export interface Student {
   class_id: string;
   created_at: string;
   updated_at: string;
+  graduation_year?: number | null;
 }
 
 export interface GetStudentsParams {
