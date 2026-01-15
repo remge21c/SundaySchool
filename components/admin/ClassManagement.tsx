@@ -16,7 +16,7 @@ import {
   getClassTeachers,
   assignTeachersToClass,
 } from '@/lib/supabase/admin';
-import { getAllDepartments } from '@/lib/supabase/departments';
+import { getAllDepartmentsForAdmin } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,8 +84,8 @@ export function ClassManagement() {
     isLoading: departmentsLoading,
     error: departmentsError,
   } = useQuery({
-    queryKey: ['departments'],
-    queryFn: getAllDepartments,
+    queryKey: ['departments', 'admin'],
+    queryFn: getAllDepartmentsForAdmin,
     retry: 1,
   });
 

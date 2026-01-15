@@ -206,3 +206,27 @@ export async function getDepartments(year?: number): Promise<string[]> {
 
   return departments;
 }
+
+/**
+ * 부서의 모든 반을 다른 부서로 이동
+ * @param oldDepartment 이전 부서명
+ * @param newDepartment 새 부서명
+ * @returns 성공 여부
+ */
+export async function moveClassesToDepartment(
+  oldDepartment: string,
+  newDepartment: string
+): Promise<void> {
+  if (oldDepartment === newDepartment) return;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await ((supabase
+    .from('classes') as any)
+    .update({ department: newDepartment })
+    .eq('department', oldDepartment));
+
+  if (error) {
+    console.error(`Error moving classes from ${oldDepartment} to ${newDepartment}:`, error);
+    throw error;
+  }
+}

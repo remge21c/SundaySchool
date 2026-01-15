@@ -100,7 +100,7 @@ export async function getYearTransitionStatus(): Promise<TransitionStatus> {
         assignmentProgress: totalStudents > 0
             ? Math.round((assignedStudents / totalStudents) * 100)
             : 0,
-        confirmed: log?.status === 'pending' || log?.status === 'completed',
+        confirmed: totalStudents > 0 && assignedStudents === totalStudents,
         executed: log?.status === 'completed',
         totalStudents,
         assignedStudents,
@@ -456,5 +456,44 @@ export async function assignStudentsBatch(
     } catch (error: any) {
         console.error('Error batch assigning students:', error);
         return { success: false, error: error.message };
+    }
+}
+
+/**
+ * 다음 연도 반 생성 초기화 (다시 생성하기 위함)
+ */
+export async function resetNextYearClasses(): Promise<{ success: boolean; error?: string }> {
+    const currentYear = new Date().getFullYear();
+    const nextYear = currentYear + 1;
+
+    try {
+        // 1. 임시 배정 데이터 삭제
+        const { error: assignError } = await (supabase
+            .from('temp_class_assignments')
+            .delete()
+            .eq('year', nextYear) as any);
+
+        if (assignError) throw assignError;
+
+        // 2. 비활성 상태인 다음 연도 반 삭제
+        // 안전을 위해 is_active가 false인 것만 삭제
+        const { error: classError } = await (supabase
+            .from('classes')
+            .delete()
+            .eq('year', nextYear)
+            .eq('is_active', false) as any);
+
+        if (classError) throw classError;
+
+        // 3. 로그 상태 업데이트 (선택사항, 필요시)
+        await (supabase.from('year_transition_log') as any)
+            .delete()
+            .eq('from_year', currentYear)
+            .eq('to_year', nextYear);
+
+        return { success: true };
+    } catch (error: any) {
+        console.error('Error resetting next year classes:', error);
+        return { success: false, error: error.message || '초기화 중 오류가 발생했습니다.' };
     }
 }

@@ -14,6 +14,7 @@ import {
   deleteDepartment,
   moveDepartment,
 } from '@/lib/supabase/departments';
+import { moveClassesToDepartment } from '@/lib/supabase/classes';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +27,14 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Plus, Edit, Trash2, Building2, ChevronUp, ChevronDown } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Plus, Edit, Trash2, Building2, ChevronUp, ChevronDown, MoveRight } from 'lucide-react';
 import type { Department } from '@/lib/supabase/departments';
 
 export function DepartmentManagement() {
@@ -34,6 +42,10 @@ export function DepartmentManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingDepartment, setEditingDepartment] = useState<Department | null>(null);
   const [deletingDepartment, setDeletingDepartment] = useState<Department | null>(null);
+
+  // 이동할 타겟 부서 상태 추가
+  const [targetDepartmentId, setTargetDepartmentId] = useState<string>('none');
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // 부서 목록 조회
   const {
@@ -71,7 +83,12 @@ export function DepartmentManagement() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['departments'] });
       setDeletingDepartment(null);
+      setTargetDepartmentId('none');
+      setIsDeleting(false);
     },
+    onError: () => {
+      setIsDeleting(false);
+    }
   });
 
   // 부서 순서 변경
@@ -136,12 +153,37 @@ export function DepartmentManagement() {
 
   const handleDelete = async () => {
     if (!deletingDepartment) return;
+    setIsDeleting(true);
 
     try {
+      // 1. 학생(반) 이동이 선택되었으면 먼저 수행
+      if (targetDepartmentId !== 'none') {
+        const targetDept = departments.find(d => d.id === targetDepartmentId);
+        if (targetDept) {
+          console.log(`이동 시작: ${deletingDepartment.name} -> ${targetDept.name}`);
+          try {
+            await moveClassesToDepartment(deletingDepartment.name, targetDept.name);
+            console.log('이동 완료');
+          } catch (moveError) {
+            console.error('반 이동 실패:', moveError);
+            alert('반 이동 중 오류가 발생했습니다. 삭제가 취소됩니다.');
+            setIsDeleting(false);
+            return;
+          }
+        }
+      }
+
+      // 2. 부서 삭제 수행
       await deleteMutation.mutateAsync(deletingDepartment.id);
-    } catch (error) {
+    } catch (error: any) {
       console.error('부서 삭제 실패:', error);
-      alert('부서 삭제에 실패했습니다.');
+      console.error('Error details:', {
+        message: error?.message,
+        details: error?.details,
+        hint: error?.hint,
+        code: error?.code
+      });
+      alert(`부서 삭제에 실패했습니다: ${error?.message || '알 수 없는 오류'}`);
     }
   };
 
@@ -174,6 +216,11 @@ export function DepartmentManagement() {
       </div>
     );
   }
+
+  // 삭제 대상 부서를 제외한 다른 활성 부서 목록 (이동 대상용)
+  const availableTargetDepartments = departments.filter(
+    d => deletingDepartment && d.id !== deletingDepartment.id && d.is_active
+  );
 
   return (
     <div className="space-y-6">
@@ -246,7 +293,10 @@ export function DepartmentManagement() {
                 <Button
                   variant="outline"
                   size="sm"
-                  onClick={() => setDeletingDepartment(dept)}
+                  onClick={() => {
+                    setDeletingDepartment(dept);
+                    setTargetDepartmentId('none');
+                  }}
                   className="flex-1"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
@@ -366,31 +416,69 @@ export function DepartmentManagement() {
       </Dialog>
 
       {/* 부서 삭제 확인 다이얼로그 */}
-      <Dialog open={!!deletingDepartment} onOpenChange={(open) => !open && setDeletingDepartment(null)}>
+      <Dialog open={!!deletingDepartment} onOpenChange={(open) => !open && !isDeleting && setDeletingDepartment(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>부서 삭제 확인</DialogTitle>
+            <DialogTitle>부서 삭제</DialogTitle>
             <DialogDescription>
-              정말로 &quot;{deletingDepartment?.name}&quot; 부서를 삭제하시겠습니까?
-              <br />
-              <br />
-              삭제된 부서는 비활성화되며, 해당 부서의 반들은 그대로 유지됩니다.
-              <br />
-              필요시 나중에 다시 활성화할 수 있습니다.
+              <span className="block">
+                really &quot;{deletingDepartment?.name}&quot; delete this department?
+              </span>
             </DialogDescription>
+
+            <div className="space-y-4 pt-2">
+              <div className="rounded-md bg-yellow-50 p-4 border border-yellow-200">
+                <div className="flex gap-2">
+                  <MoveRight className="h-5 w-5 text-yellow-600 shrink-0" />
+                  <div className="space-y-2 w-full">
+                    <p className="text-sm font-medium text-yellow-800">
+                      소속된 반(학생) 이동
+                    </p>
+                    <Select
+                      value={targetDepartmentId}
+                      onValueChange={setTargetDepartmentId}
+                      disabled={isDeleting}
+                    >
+                      <SelectTrigger className="w-full bg-white">
+                        <SelectValue placeholder="이동할 부서 선택 (선택사항)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none" className="text-red-500">
+                          이동 안 함 (학생/반 모두 삭제됨)
+                        </SelectItem>
+                        {availableTargetDepartments.map((dept) => (
+                          <SelectItem key={dept.id} value={dept.id}>
+                            {dept.name}로 이동
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </div>
+
+              <span className="block text-red-600 font-bold text-sm">
+                {targetDepartmentId === 'none'
+                  ? "주의: 이동하지 않으면 소속된 모든 반과 학생 데이터가 영구적으로 삭제됩니다."
+                  : "주의: 부서 데이터는 삭제되지만, 소속된 반들은 선택한 부서로 이동됩니다."
+                }
+              </span>
+            </div>
           </DialogHeader>
           <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setDeletingDepartment(null)}
+              disabled={isDeleting}
             >
               취소
             </Button>
             <Button
               onClick={handleDelete}
               className="bg-red-600 hover:bg-red-700"
+              disabled={isDeleting}
             >
-              삭제
+              {isDeleting ? '처리 중...' : '삭제'}
             </Button>
           </DialogFooter>
         </DialogContent>

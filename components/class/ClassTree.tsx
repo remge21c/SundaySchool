@@ -6,13 +6,14 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useAllClasses, useClassesByTeacher } from '@/hooks/useClasses';
 import { useAuth } from '@/hooks/useAuth';
 import { isAdmin } from '@/lib/utils/auth';
+import { getAllDepartments, Department } from '@/lib/supabase/departments';
 import type { Class, ClassGroup } from '@/types/class';
 import { ChevronRight, ChevronDown, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { DEPARTMENT_ORDER } from '@/lib/constants';
 
 interface ClassTreeProps {
   onSelect: (classId: string) => void;
@@ -23,7 +24,7 @@ interface ClassTreeProps {
 /**
  * 반 목록을 부서별로 그룹화
  */
-function groupClassesByDepartment(classes: Class[]): ClassGroup[] {
+function groupClassesByDepartment(classes: Class[], departments: Department[]): ClassGroup[] {
   const groups = new Map<string, Class[]>();
 
   classes.forEach((cls) => {
@@ -33,27 +34,33 @@ function groupClassesByDepartment(classes: Class[]): ClassGroup[] {
     groups.get(cls.department)!.push(cls);
   });
 
+  // 부서 정렬 순서 맵 생성 (이름 -> 인덱스)
+  const deptOrderMap = new Map<string, number>();
+  departments.forEach((dept, index) => {
+    deptOrderMap.set(dept.name, index);
+  });
+
   return Array.from(groups.entries())
     .map(([department, classes]) => ({
       department,
       classes: classes.sort((a, b) => a.name.localeCompare(b.name)),
     }))
     .sort((a, b) => {
-      const indexA = DEPARTMENT_ORDER.indexOf(a.department);
-      const indexB = DEPARTMENT_ORDER.indexOf(b.department);
+      const indexA = deptOrderMap.get(a.department) ?? 999;
+      const indexB = deptOrderMap.get(b.department) ?? 999;
 
       // 둘 다 순서 목록에 있으면 순서대로 정렬
-      if (indexA !== -1 && indexB !== -1) {
+      if (indexA !== 999 && indexB !== 999) {
         return indexA - indexB;
       }
 
       // A만 목록에 있으면 A를 앞으로
-      if (indexA !== -1) {
+      if (indexA !== 999) {
         return -1;
       }
 
       // B만 목록에 있으면 B를 앞으로
-      if (indexB !== -1) {
+      if (indexB !== 999) {
         return 1;
       }
 
@@ -73,6 +80,12 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
     }
   }, [user]);
 
+  // 부서 목록 조회
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: getAllDepartments,
+  });
+
   // 모든 반 조회 (관리자용)
   const { data: allClasses, isLoading: allClassesLoading, error: allClassesError } = useAllClasses(year);
 
@@ -91,8 +104,8 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
   // 부서별로 그룹화
   const groupedClasses = useMemo(() => {
     if (!classes) return [];
-    return groupClassesByDepartment(classes);
-  }, [classes]);
+    return groupClassesByDepartment(classes, departments);
+  }, [classes, departments]);
 
   // 교사의 담당 반이 있는 부서들을 자동으로 펼치기
   useEffect(() => {

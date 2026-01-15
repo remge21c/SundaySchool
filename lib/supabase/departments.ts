@@ -130,11 +130,11 @@ export async function updateDepartment(
  * @param departmentId 부서 ID
  */
 export async function deleteDepartment(departmentId: string): Promise<void> {
-  // 소프트 삭제: is_active = false로 설정
+  // 하드 삭제: 실제 데이터 삭제
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await ((supabase
     .from('departments') as any)
-    .update({ is_active: false })
+    .delete()
     .eq('id', departmentId));
 
   if (error) {

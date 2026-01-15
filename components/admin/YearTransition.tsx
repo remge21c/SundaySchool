@@ -11,6 +11,7 @@ import {
     getNextYearClasses,
     executeYearTransition,
     assignStudentsBatch,
+    resetNextYearClasses,
     type TransitionStatus,
     type StudentWithClass,
     type Class,
@@ -65,6 +66,8 @@ export function YearTransition() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [isExecuting, setIsExecuting] = useState(false);
     const [showExecuteDialog, setShowExecuteDialog] = useState(false);
+    const [showResetDialog, setShowResetDialog] = useState(false);
+    const [isResetting, setIsResetting] = useState(false);
 
     // 필터링 및 선택 상태
     const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
@@ -238,6 +241,28 @@ export function YearTransition() {
         }
     };
 
+    const handleResetClasses = async () => {
+        if (!status) return;
+        try {
+            setIsResetting(true);
+            setSuccessMessage(null);
+            const result = await resetNextYearClasses();
+            if (result.success) {
+                setSuccessMessage('반 생성이 초기화되었습니다. 다시 생성할 수 있습니다.');
+                setShowResetDialog(false);
+                fetchData();
+            } else {
+                setError(result.error || '초기화 실패');
+                setShowResetDialog(false);
+            }
+        } catch (err: any) {
+            setError(err.message);
+            setShowResetDialog(false);
+        } finally {
+            setIsResetting(false);
+        }
+    };
+
     if (loading && !status) {
         return (
             <div className="flex justify-center p-8">
@@ -349,6 +374,36 @@ export function YearTransition() {
                                     <Button size="sm" onClick={handleCreateClasses} disabled={loading}>
                                         반 생성 실행
                                     </Button>
+                                )}
+                                {index === 0 && step.completed && (
+                                    <Dialog open={showResetDialog} onOpenChange={setShowResetDialog}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline" className="text-red-600 hover:bg-red-50 hover:text-red-700 border-red-200">
+                                                <RefreshCw className="h-4 w-4 mr-1" />
+                                                초기화 (다시 생성)
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle className="text-red-600 flex items-center gap-2">
+                                                    <AlertTriangle className="h-5 w-5" />
+                                                    반 생성 초기화
+                                                </DialogTitle>
+                                                <DialogDescription>
+                                                    정말로 생성된 {status.nextYear}년도 반을 모두 삭제하시겠습니까?
+                                                    <br />
+                                                    이미 배정된 학생 정보도 함께 삭제됩니다. 이 작업은 되돌릴 수 없습니다.
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setShowResetDialog(false)}>취소</Button>
+                                                <Button variant="destructive" onClick={handleResetClasses} disabled={isResetting}>
+                                                    {isResetting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                                    초기화 실행
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
                                 )}
                                 {index === 3 && step.completed === false && (
                                     <Dialog open={showExecuteDialog} onOpenChange={setShowExecuteDialog}>
