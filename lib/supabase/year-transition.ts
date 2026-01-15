@@ -157,14 +157,13 @@ export async function createNextYearClasses(): Promise<{
         }
 
         // 전환 로그 생성
-        await (supabase
-            .from('year_transition_log')
-            .upsert({
-                from_year: currentYear,
-                to_year: nextYear,
-                status: 'pending',
-                classes_created: insertedClasses?.length ?? 0,
-            }) as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('year_transition_log') as any).upsert({
+            from_year: currentYear,
+            to_year: nextYear,
+            status: 'pending',
+            classes_created: insertedClasses?.length ?? 0,
+        });
 
         return {
             success: true,
@@ -190,14 +189,13 @@ export async function assignStudentToClass(
     assignedBy?: string
 ): Promise<{ success: boolean; error?: string }> {
     try {
-        const { error } = await (supabase
-            .from('temp_class_assignments')
-            .upsert({
-                student_id: studentId,
-                class_id: classId,
-                year,
-                assigned_by: assignedBy,
-            }) as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from('temp_class_assignments') as any).upsert({
+            student_id: studentId,
+            class_id: classId,
+            year,
+            assigned_by: assignedBy,
+        });
 
         if (error) {
             throw error;
@@ -301,21 +299,21 @@ export async function executeYearTransition(): Promise<{
 
     try {
         // 1. 작년 반 비활성화
-        const { error: deactivateError } = await (supabase
-            .from('classes')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error: deactivateError } = await (supabase.from('classes') as any)
             .update({ is_active: false })
-            .eq('year', lastYear) as any);
+            .eq('year', lastYear);
 
         if (deactivateError) {
             console.warn('Error deactivating last year classes:', deactivateError);
         }
 
         // 2. 올해 반 활성화
-        const { data: activatedClasses, error: activateError } = await (supabase
-            .from('classes')
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data: activatedClasses, error: activateError } = await (supabase.from('classes') as any)
             .update({ is_active: true })
             .eq('year', currentYear)
-            .select() as any);
+            .select();
 
         if (activateError) {
             throw activateError;
@@ -349,10 +347,10 @@ export async function executeYearTransition(): Promise<{
 
             // 학생 테이블의 class_id 업데이트
             for (const ta of tempAssignments) {
-                await (supabase
-                    .from('students')
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                await (supabase.from('students') as any)
                     .update({ class_id: ta.class_id })
-                    .eq('id', ta.student_id) as any);
+                    .eq('id', ta.student_id);
             }
 
             // 임시 배정 삭제
@@ -390,16 +388,15 @@ export async function executeYearTransition(): Promise<{
         }
 
         // 6. 전환 로그 업데이트
-        await (supabase
-            .from('year_transition_log')
-            .upsert({
-                from_year: lastYear,
-                to_year: currentYear,
-                status: 'completed',
-                classes_created: activatedClasses?.length ?? 0,
-                students_assigned: studentsAssigned,
-                executed_at: new Date().toISOString(),
-            }) as any);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        await (supabase.from('year_transition_log') as any).upsert({
+            from_year: lastYear,
+            to_year: currentYear,
+            status: 'completed',
+            classes_created: activatedClasses?.length ?? 0,
+            students_assigned: studentsAssigned,
+            executed_at: new Date().toISOString(),
+        });
 
         return {
             success: true,
