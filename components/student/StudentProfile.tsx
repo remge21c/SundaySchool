@@ -35,7 +35,7 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
   const { user } = useAuth();
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAllergyEditModalOpen, setIsAllergyEditModalOpen] = useState(false);
-  
+
   // 반 정보 조회
   const { data: classInfo } = useClass(student?.class_id);
 
@@ -95,8 +95,8 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
 
   // 제목에 부서와 반 이름 추가
   const title = classInfo
-    ? `${student.name} 학생 프로필 (${classInfo.department} ${classInfo.name})`
-    : `${student.name} 학생 프로필`;
+    ? `${student.name} 프로필 (${classInfo.department} ${classInfo.name})`
+    : `${student.name} 프로필`;
 
   return (
     <Container>
@@ -138,62 +138,79 @@ export function StudentProfile({ studentId }: StudentProfileProps) {
               />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Row 1: 이름 | 전화번호 */}
               <div>
                 <label className="text-sm font-medium text-gray-500">이름</label>
                 <p className="text-lg font-semibold">{student.name}</p>
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-500">학년</label>
-                <p className="text-lg font-semibold">{student.grade}학년</p>
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                  <Phone className="h-4 w-4" />
+                  전화번호
+                </label>
+                <p className="text-base">{(student as any).student_phone_number || '-'}</p>
               </div>
 
-              {student.birthday && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                    <Calendar className="h-4 w-4" />
-                    생년월일
-                  </label>
-                  <p className="text-base">
-                    {format(new Date(student.birthday), 'yyyy년 M월 d일', { locale: ko })}
-                  </p>
-                </div>
-              )}
+              {/* Row 2: 생년월일 | 성별 */}
+              <div>
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                  <Calendar className="h-4 w-4" />
+                  생년월일
+                </label>
+                <p className="text-base">
+                  {student.birthday
+                    ? format(new Date(student.birthday), 'yyyy년 M월 d일', { locale: ko })
+                    : '-'}
+                </p>
+              </div>
 
-              {student.gender && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500">성별</label>
-                  <p className="text-base">{student.gender === 'M' ? '남' : '여'}</p>
-                </div>
-              )}
+              <div>
+                <label className="text-sm font-medium text-gray-500">성별</label>
+                <p className="text-base">
+                  {student.gender === 'M' ? '남' : student.gender === 'F' ? '여' : '-'}
+                </p>
+              </div>
 
-              {student.school_name && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                    <School className="h-4 w-4" />
-                    학교명
-                  </label>
-                  <p className="text-base">{student.school_name}</p>
-                </div>
-              )}
+              {/* Row 3: 학교명 | 학년 */}
+              <div>
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                  <School className="h-4 w-4" />
+                  학교명
+                </label>
+                <p className="text-base">{student.school_name || '-'}</p>
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-500">학년</label>
+                <p className="text-base">{student.grade ? `${student.grade}학년` : '-'}</p>
+              </div>
+
+              {/* Row 4: 보호자이름 | 보호자연락처 */}
+              <div>
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                  <User className="h-4 w-4" />
+                  보호자 이름
+                </label>
+                <p className="text-base">{(student as any).parent_name || '-'}</p>
+              </div>
 
               <div>
                 <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
                   <Phone className="h-4 w-4" />
                   보호자 연락처
                 </label>
-                <p className="text-base">{student.parent_contact}</p>
+                <p className="text-base">{student.parent_contact || '-'}</p>
               </div>
 
-              {student.address && (
-                <div>
-                  <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
-                    <MapPin className="h-4 w-4" />
-                    주소
-                  </label>
-                  <p className="text-base">{student.address}</p>
-                </div>
-              )}
+              {/* Row 5: 주소 (전체 폭) */}
+              <div className="md:col-span-2">
+                <label className="text-sm font-medium text-gray-500 flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  주소
+                </label>
+                <p className="text-base">{student.address || '-'}</p>
+              </div>
             </div>
           </CardContent>
         </Card>
