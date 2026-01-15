@@ -262,10 +262,10 @@ export async function transferStudentsToDepartment(
  */
 export async function promoteStudentsGrade(studentIds: string[]): Promise<number> {
   // 먼저 학생 정보 조회
-  const { data: students, error: selectError } = await supabase
+  const { data: students, error: selectError } = await (supabase
     .from('students')
     .select('id, grade')
-    .in('id', studentIds);
+    .in('id', studentIds) as any);
 
   if (selectError) throw selectError;
 
