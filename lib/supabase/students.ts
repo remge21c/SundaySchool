@@ -83,7 +83,7 @@ export async function getStudentsByDepartment(
   }
 
   // classes 정보는 제거하고 student 정보만 반환
-  return (data?.map(item => {
+  return (data?.map((item: any) => {
     const { classes, ...student } = item;
     return student;
   }) ?? []) as Student[];
