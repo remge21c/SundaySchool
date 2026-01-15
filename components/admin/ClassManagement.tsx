@@ -581,6 +581,7 @@ function ClassCard({
           </div>
           {otherTeacherNames.length > 0 && (
             <div className="flex items-center gap-2 text-sm text-gray-600">
+              <Users className="h-4 w-4 text-gray-400" />
               <span>보조: {otherTeacherNames.join(', ')}</span>
             </div>
           )}

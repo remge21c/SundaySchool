@@ -4,9 +4,28 @@ import { useState, useEffect, FormEvent } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useAuth } from '@/hooks/useAuth';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+
+// 직책 타입
+type TeacherPosition = 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
+
+// 직책 한글 매핑
+const POSITION_LABELS: Record<TeacherPosition, string> = {
+  pastor: '담당목회자',
+  director: '부장',
+  secretary: '총무',
+  treasurer: '회계',
+  teacher: '교사',
+};
 
 /**
  * 회원가입 폼 컴포넌트
@@ -16,6 +35,7 @@ export function SignupForm() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [position, setPosition] = useState<TeacherPosition>('teacher');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { signUp, isAuthenticated, loading } = useAuth();
@@ -74,7 +94,7 @@ export function SignupForm() {
     setIsSubmitting(true);
 
     try {
-      const error = await signUp(email, password, fullName.trim());
+      const error = await signUp(email, password, fullName.trim(), position);
 
       if (error) {
         setError(error.message || '회원가입 중 오류가 발생했습니다.');
@@ -172,6 +192,28 @@ export function SignupForm() {
               disabled={isSubmitting}
               autoComplete="name"
             />
+          </div>
+
+          <div className="space-y-2">
+            <label htmlFor="position" className="text-sm font-medium">
+              직책
+            </label>
+            <Select
+              value={position}
+              onValueChange={(value) => setPosition(value as TeacherPosition)}
+              disabled={isSubmitting}
+            >
+              <SelectTrigger id="position">
+                <SelectValue placeholder="직책을 선택하세요" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(POSITION_LABELS).map(([key, label]) => (
+                  <SelectItem key={key} value={key}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {error && (

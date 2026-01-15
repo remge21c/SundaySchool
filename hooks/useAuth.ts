@@ -44,11 +44,11 @@ export function useAuth(): UseAuthReturn {
       .getSession()
       .then(({ data: { session }, error }) => {
         if (!mounted) return;
-        
+
         if (error) {
           console.error('세션 조회 에러:', error);
         }
-        
+
         setSession(session);
         setUser(session?.user ?? null);
         setLoading(false);
@@ -99,16 +99,21 @@ export function useAuth(): UseAuthReturn {
       setSession(data.session);
       setUser(data.session.user);
     }
-    
+
     return null;
   };
 
   /**
    * 회원가입
    */
-  const signUp = async (email: string, password: string, fullName: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    position: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher' = 'teacher'
+  ) => {
     const { signUp: signUpApi } = await import('@/lib/supabase/auth');
-    const result = await signUpApi(email, password, fullName);
+    const result = await signUpApi(email, password, fullName, position);
 
     if (result.error) {
       return result.error;

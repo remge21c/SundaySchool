@@ -25,6 +25,8 @@ export interface Database {
           phone_number: string | null;
           department_id: string | null;
           avatar_url: string | null;
+          position: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
+          permission_scope: 'department' | 'class';
           created_at: string;
           updated_at: string;
         };
@@ -36,6 +38,8 @@ export interface Database {
           phone_number?: string | null;
           department_id?: string | null;
           avatar_url?: string | null;
+          position?: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
+          permission_scope?: 'department' | 'class';
           created_at?: string;
           updated_at?: string;
         };
@@ -47,6 +51,8 @@ export interface Database {
           phone_number?: string | null;
           department_id?: string | null;
           avatar_url?: string | null;
+          position?: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
+          permission_scope?: 'department' | 'class';
           created_at?: string;
           updated_at?: string;
         };
