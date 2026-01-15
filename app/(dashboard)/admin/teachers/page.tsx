@@ -36,7 +36,7 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase/client';
-import { Users, Edit2, X, Plus, Building2 } from 'lucide-react';
+import { Users, Edit2, X, Plus, Building2, Trash2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 // 직책 타입
@@ -169,10 +169,12 @@ export default function TeachersPage() {
         return departments.filter(d => myDepartmentScope.includes(d.name));
     }, [departments, isAdmin, myDepartmentScope]);
 
-    // 선택된 부서에 해당하는 반 목록
+    // 선택된 부서에 해당하는 반 목록 (이름순 정렬)
     const filteredClasses = useMemo(() => {
         if (!selectedDepartment) return [];
-        return allClasses.filter(c => c.department === selectedDepartment);
+        return allClasses
+            .filter(c => c.department === selectedDepartment)
+            .sort((a, b) => a.name.localeCompare(b.name, 'ko'));
     }, [selectedDepartment, allClasses]);
 
     // 기존 데이터 형식을 새 형식으로 변환하는 헬퍼
@@ -530,50 +532,82 @@ export default function TeachersPage() {
         setSaving(true);
 
         try {
-            // 1. 프로필 업데이트
+            // 1. 프로필 업데이트 (RPC 사용)
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const { error: profileError } = await (supabase
-                .from('profiles') as any)
-                .update({
-                    department_permissions: editData.departmentSettings,
-                    updated_at: new Date().toISOString(),
-                })
-                .eq('id', editingTeacher.id);
+            const { error: profileError } = await (supabase.rpc('update_teacher_department_permissions', {
+                target_teacher_id: editingTeacher.id,
+                new_permissions: editData.departmentSettings
+            } as any));
 
             if (profileError) {
                 console.error('프로필 저장 오류:', profileError);
-                alert('저장에 실패했습니다: ' + profileError.message);
+                // "function not found" 에러인 경우 마이그레이션 안내
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                if ((profileError as any).message?.includes('function') && (profileError as any).message?.includes('not found')) {
+                    alert('서버 함수를 찾을 수 없습니다. 마이그레이션(045)이 실행되었는지 확인해주세요.');
+                } else {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    alert('저장에 실패했습니다: ' + (profileError as any).message);
+                }
                 setSaving(false);
                 return;
             }
 
-            // 2. 기존 main_teacher_id 해제
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase
-                .from('classes') as any)
-                .update({ main_teacher_id: null })
-                .eq('main_teacher_id', editingTeacher.id);
+            // --- 반 배정 업데이트 (권한이 있는 부서에 대해서만 수행) ---
 
-            // 3. class_teachers에서 기존 레코드 삭제
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            await (supabase
-                .from('class_teachers') as any)
-                .delete()
-                .eq('teacher_id', editingTeacher.id);
+            // 내가 관리 가능한 반 ID 목록 추출
+            const manageableClassIds = isAdmin
+                ? allClasses.map(c => c.id)
+                : allClasses.filter(c => myDepartmentScope.includes(c.department)).map(c => c.id);
 
-            // 4. 새로운 배정 적용
-            for (const assignment of editData.classAssignments) {
-                if (assignment.role === 'main') {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (supabase
-                        .from('classes') as any)
-                        .update({ main_teacher_id: editingTeacher.id })
-                        .eq('id', assignment.classId);
-                } else {
-                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    await (supabase
-                        .from('class_teachers') as any)
-                        .insert({ class_id: assignment.classId, teacher_id: editingTeacher.id });
+            console.log('Manageable Class IDs:', manageableClassIds);
+            console.log('Sending Department Settings to RPC:', editData.departmentSettings);
+
+            if (manageableClassIds.length === 0) {
+                console.log('No classes to manage (only modifying permissions?)');
+                // 관리 가능한 반이 없으면(부서 권한만 수정하는 경우 등) 여기서 종료해도 되지만, 
+                // 목록 갱신을 위해 아래로 진행
+            } else {
+                console.log('Removing assignments for manageable classes...');
+
+                // 2. 권한 범위 내의 기존 main_teacher_id 해제
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const { error: clearMainError } = await (supabase
+                    .from('classes') as any)
+                    .update({ main_teacher_id: null })
+                    .eq('main_teacher_id', editingTeacher.id)
+                    .in('id', manageableClassIds); // 내 권한 범위 내 반만 건드림
+
+                if (clearMainError) console.error('Error clearing main teacher:', clearMainError);
+
+                // 3. 권한 범위 내의 class_teachers 레코드 삭제
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const { error: deleteTeacherError } = await (supabase
+                    .from('class_teachers') as any)
+                    .delete()
+                    .eq('teacher_id', editingTeacher.id)
+                    .in('class_id', manageableClassIds); // 내 권한 범위 내 반만 건드림
+
+                if (deleteTeacherError) console.error('Error deleting class teachers:', deleteTeacherError);
+
+                // 4. 새로운 배정 적용 (권한 범위 내의 반만)
+                // editData에는 모든 배정이 들어있으므로, 내 권한 범위에 해당하는 것만 필터링해서 적용
+                const assignmentsToApply = editData.classAssignments.filter(a => manageableClassIds.includes(a.classId));
+                console.log('Applying assignments:', assignmentsToApply);
+
+                for (const assignment of assignmentsToApply) {
+                    if (assignment.role === 'main') {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        await (supabase
+                            .from('classes') as any)
+                            .update({ main_teacher_id: editingTeacher.id })
+                            .eq('id', assignment.classId);
+                    } else {
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        await (supabase
+                            .from('class_teachers') as any)
+                            .insert({ class_id: assignment.classId, teacher_id: editingTeacher.id });
+                    }
                 }
             }
 
@@ -589,10 +623,12 @@ export default function TeachersPage() {
         }
     };
 
-    // 현재 편집 중인 부서별 반 그룹
+    // 현재 편집 중인 부서별 반 그룹 + 설정만 있는 부서
     const groupedAssignedClasses = useMemo(() => {
         if (!editData) return {};
         const groups: Record<string, { cls: ClassInfo; role: ClassRole }[]> = {};
+
+        // 1. 반 배정이 있는 부서 처리
         editData.classAssignments.forEach(a => {
             const cls = allClasses.find(c => c.id === a.classId);
             if (cls) {
@@ -600,8 +636,60 @@ export default function TeachersPage() {
                 groups[cls.department].push({ cls, role: a.role });
             }
         });
+
+        // 2. 반 배정은 없지만 부서 설정이 있는 경우 처리
+        Object.keys(editData.departmentSettings).forEach(dept => {
+            if (!groups[dept]) {
+                groups[dept] = [];
+            }
+        });
+
         return groups;
     }, [editData, allClasses]);
+
+    // 부서 배정 삭제 (반 배정 및 권한 설정 모두 제거)
+    const removeDepartment = (dept: string) => {
+        console.log('=== removeDepartment called ===');
+        console.log('Department to remove:', dept);
+        console.log('Current editData:', editData);
+
+        if (!editData) {
+            console.log('editData is null, returning early');
+            return;
+        }
+
+        // confirm 제거 - 취소 버튼으로 되돌릴 수 있음
+        // if (!confirm(`'${dept}'의 모든 배정(직책, 담당 반)을 삭제하시겠습니까?`)) {
+        //     console.log('User cancelled the confirmation');
+        //     return;
+        // }
+
+        // 해당 부서의 반 배정 제거
+        const newClassAssignments = editData.classAssignments.filter(a => {
+            const cls = allClasses.find(c => c.id === a.classId);
+            return cls?.department !== dept;
+        });
+
+        // 부서 설정 제거
+        const newSettings = { ...editData.departmentSettings };
+        delete newSettings[dept];
+
+        console.log('New class assignments:', newClassAssignments);
+        console.log('New department settings:', newSettings);
+
+        setEditData({
+            classAssignments: newClassAssignments,
+            departmentSettings: newSettings,
+        });
+
+        console.log('editData state updated. Remember to click SAVE button!');
+
+        // 만약 현재 수정 중이던 부서라면 선택 해제 또는 다른 동작
+        if (selectedDepartment === dept) {
+            setSelectedDepartment('');
+            setSelectedClassId('');
+        }
+    };
 
     // 편집 다이얼로그에서 수정 가능한 부서
     const editableDepartments = useMemo(() => {
@@ -827,126 +915,147 @@ export default function TeachersPage() {
                                     {Object.keys(groupedAssignedClasses).length === 0 ? (
                                         <p className="text-sm text-gray-500">배정된 반이 없습니다.</p>
                                     ) : (
-                                        Object.entries(groupedAssignedClasses).map(([dept, items]) => {
-                                            const setting = editData.departmentSettings[dept] || {
-                                                position: 'teacher',
-                                                permission_scope: 'class',
-                                            };
-                                            // 부서 필터가 선택된 경우: 해당 부서만 수정 가능
-                                            // 부서 필터가 없는 경우: 권한에 따라 수정 가능
-                                            const isEditable = editingDeptFilter
-                                                ? (dept === editingDeptFilter && (isAdmin || myDepartmentScope.includes(dept)))
-                                                : (isAdmin || myDepartmentScope.includes(dept));
-                                            return (
-                                                <div key={dept} className={`border rounded-lg p-3 ${isEditable ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
-                                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b">
-                                                        <span className="font-semibold text-sm">{dept}</span>
-                                                        {!isEditable && <span className="text-xs text-gray-500">(수정 불가)</span>}
-                                                    </div>
+                                        Object.entries(groupedAssignedClasses)
+                                            .sort(([deptA], [deptB]) => {
+                                                // 부서 순서(sort_order)에 따라 정렬
+                                                const orderA = departments.find(d => d.name === deptA)?.sort_order ?? 999;
+                                                const orderB = departments.find(d => d.name === deptB)?.sort_order ?? 999;
+                                                return orderA - orderB;
+                                            })
+                                            .map(([dept, items]) => {
+                                                const setting = editData.departmentSettings[dept] || {
+                                                    position: 'teacher',
+                                                    permission_scope: 'class',
+                                                };
+                                                // 부서 필터가 선택된 경우: 해당 부서만 수정 가능
+                                                // 부서 필터가 없는 경우: 권한에 따라 수정 가능
+                                                const isEditable = editingDeptFilter
+                                                    ? (dept === editingDeptFilter && (isAdmin || myDepartmentScope.includes(dept)))
+                                                    : (isAdmin || myDepartmentScope.includes(dept));
+                                                return (
+                                                    <div key={dept} className={`border rounded-lg p-3 ${isEditable ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
+                                                        <div className="flex items-center gap-2 mb-3 pb-2 border-b justify-between">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-semibold text-sm">{dept}</span>
+                                                                {!isEditable && <span className="text-xs text-gray-500">(수정 불가)</span>}
+                                                            </div>
 
-                                                    <div className="grid grid-cols-2 gap-2 mb-3">
-                                                        <div>
-                                                            <Label className="text-xs text-gray-500">직책</Label>
-                                                            <Select
-                                                                value={setting.position}
-                                                                onValueChange={(value) => updateDepartmentSetting(dept, 'position', value as TeacherPosition)}
-                                                                disabled={saving || !isEditable}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-sm">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {Object.entries(POSITION_LABELS).map(([key, label]) => (
-                                                                        <SelectItem key={key} value={key} className="text-sm">
-                                                                            {label}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                        <div>
-                                                            <Label className="text-xs text-gray-500">권한</Label>
-                                                            <Select
-                                                                value={setting.permission_scope}
-                                                                onValueChange={(value) => updateDepartmentSetting(dept, 'permission_scope', value as PermissionScope)}
-                                                                disabled={saving || !isEditable}
-                                                            >
-                                                                <SelectTrigger className="h-8 text-sm">
-                                                                    <SelectValue />
-                                                                </SelectTrigger>
-                                                                <SelectContent>
-                                                                    {Object.entries(SCOPE_LABELS).map(([key, label]) => (
-                                                                        <SelectItem key={key} value={key} className="text-sm">
-                                                                            {label}
-                                                                        </SelectItem>
-                                                                    ))}
-                                                                </SelectContent>
-                                                            </Select>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="space-y-1">
-                                                        <Label className="text-xs text-gray-500">담당 반</Label>
-                                                        {items.map(({ cls, role }) => {
-                                                            // 해당 부서의 전체 반 목록
-                                                            const deptClasses = allClasses.filter(c => c.department === dept);
-                                                            return (
-                                                                <div
-                                                                    key={cls.id}
-                                                                    className="flex items-center justify-between py-1 px-2 bg-white rounded border"
+                                                            {isEditable && (
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    className="h-6 w-6 p-0 text-gray-400 hover:text-red-500 hover:bg-red-50"
+                                                                    onClick={() => removeDepartment(dept)}
+                                                                    title="이 부서 배정 삭제"
                                                                 >
-                                                                    {/* 반 선택 드롭다운 */}
-                                                                    <Select
-                                                                        value={cls.id}
-                                                                        onValueChange={(value) => updateClassId(cls.id, value, dept)}
-                                                                        disabled={saving || !isEditable}
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                                            <div>
+                                                                <Label className="text-xs text-gray-500">직책</Label>
+                                                                <Select
+                                                                    value={setting.position}
+                                                                    onValueChange={(value) => updateDepartmentSetting(dept, 'position', value as TeacherPosition)}
+                                                                    disabled={saving || !isEditable}
+                                                                >
+                                                                    <SelectTrigger className="h-8 text-sm">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {Object.entries(POSITION_LABELS).map(([key, label]) => (
+                                                                            <SelectItem key={key} value={key} className="text-sm">
+                                                                                {label}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                            <div>
+                                                                <Label className="text-xs text-gray-500">권한</Label>
+                                                                <Select
+                                                                    value={setting.permission_scope}
+                                                                    onValueChange={(value) => updateDepartmentSetting(dept, 'permission_scope', value as PermissionScope)}
+                                                                    disabled={saving || !isEditable}
+                                                                >
+                                                                    <SelectTrigger className="h-8 text-sm">
+                                                                        <SelectValue />
+                                                                    </SelectTrigger>
+                                                                    <SelectContent>
+                                                                        {Object.entries(SCOPE_LABELS).map(([key, label]) => (
+                                                                            <SelectItem key={key} value={key} className="text-sm">
+                                                                                {label}
+                                                                            </SelectItem>
+                                                                        ))}
+                                                                    </SelectContent>
+                                                                </Select>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className="space-y-1">
+                                                            <Label className="text-xs text-gray-500">담당 반</Label>
+                                                            {items.map(({ cls, role }) => {
+                                                                // 해당 부서의 전체 반 목록
+                                                                const deptClasses = allClasses.filter(c => c.department === dept);
+                                                                return (
+                                                                    <div
+                                                                        key={cls.id}
+                                                                        className="flex items-center justify-between py-1 px-2 bg-white rounded border"
                                                                     >
-                                                                        <SelectTrigger className="h-7 flex-1 text-sm mr-2">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {deptClasses.map((c) => (
-                                                                                <SelectItem key={c.id} value={c.id} className="text-sm">
-                                                                                    {c.name}
-                                                                                </SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    {/* 역할 선택 */}
-                                                                    <Select
-                                                                        value={role}
-                                                                        onValueChange={(value) => updateClassRole(cls.id, value as ClassRole)}
-                                                                        disabled={saving || !isEditable}
-                                                                    >
-                                                                        <SelectTrigger className="h-7 w-20 text-xs">
-                                                                            <SelectValue />
-                                                                        </SelectTrigger>
-                                                                        <SelectContent>
-                                                                            {Object.entries(ROLE_LABELS).map(([key, label]) => (
-                                                                                <SelectItem key={key} value={key} className="text-xs">
-                                                                                    {label}
-                                                                                </SelectItem>
-                                                                            ))}
-                                                                        </SelectContent>
-                                                                    </Select>
-                                                                    {isEditable && (
-                                                                        <Button
-                                                                            size="sm"
-                                                                            variant="ghost"
-                                                                            className="h-6 w-6 p-0 ml-1 text-gray-400 hover:text-red-500"
-                                                                            onClick={() => removeClassFromList(cls.id)}
-                                                                            disabled={saving}
+                                                                        {/* 반 선택 드롭다운 */}
+                                                                        <Select
+                                                                            value={cls.id}
+                                                                            onValueChange={(value) => updateClassId(cls.id, value, dept)}
+                                                                            disabled={saving || !isEditable}
                                                                         >
-                                                                            <X className="h-3 w-3" />
-                                                                        </Button>
-                                                                    )}
-                                                                </div>
-                                                            );
-                                                        })}
+                                                                            <SelectTrigger className="h-7 flex-1 text-sm mr-2">
+                                                                                <SelectValue />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {deptClasses.map((c) => (
+                                                                                    <SelectItem key={c.id} value={c.id} className="text-sm">
+                                                                                        {c.name}
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        {/* 역할 선택 */}
+                                                                        <Select
+                                                                            value={role}
+                                                                            onValueChange={(value) => updateClassRole(cls.id, value as ClassRole)}
+                                                                            disabled={saving || !isEditable}
+                                                                        >
+                                                                            <SelectTrigger className="h-7 w-20 text-xs">
+                                                                                <SelectValue />
+                                                                            </SelectTrigger>
+                                                                            <SelectContent>
+                                                                                {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                                                                                    <SelectItem key={key} value={key} className="text-xs">
+                                                                                        {label}
+                                                                                    </SelectItem>
+                                                                                ))}
+                                                                            </SelectContent>
+                                                                        </Select>
+                                                                        {isEditable && (
+                                                                            <Button
+                                                                                size="sm"
+                                                                                variant="ghost"
+                                                                                className="h-6 w-6 p-0 ml-1 text-gray-400 hover:text-red-500"
+                                                                                onClick={() => removeClassFromList(cls.id)}
+                                                                                disabled={saving}
+                                                                            >
+                                                                                <X className="h-3 w-3" />
+                                                                            </Button>
+                                                                        )}
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
                                                     </div>
-                                                </div>
-                                            );
-                                        })
+                                                );
+                                            })
                                     )}
                                 </div>
 
