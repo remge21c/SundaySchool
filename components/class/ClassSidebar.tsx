@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 interface ClassSidebarProps {
   onSelect: (classId: string) => void;
   selectedClassId?: string;
+  onSelectDepartment?: (departmentName: string) => void;
+  selectedDepartment?: string;
   year?: number;
   className?: string;
 }
@@ -21,6 +23,8 @@ interface ClassSidebarProps {
 export function ClassSidebar({
   onSelect,
   selectedClassId,
+  onSelectDepartment,
+  selectedDepartment,
   year,
   className,
 }: ClassSidebarProps) {
@@ -74,6 +78,13 @@ export function ClassSidebar({
               setIsOpen(false); // 모바일에서 선택 시 닫기
             }}
             selectedClassId={selectedClassId}
+            onSelectDepartment={(dept) => {
+              if (onSelectDepartment) {
+                onSelectDepartment(dept);
+                setIsOpen(false);
+              }
+            }}
+            selectedDepartment={selectedDepartment}
             year={year}
           />
         </div>

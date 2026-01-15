@@ -48,6 +48,48 @@ export async function getStudentsByClass(
 }
 
 /**
+ * 부서별 학생 리스트 조회
+ * @param departmentName 부서명
+ * @param params 추가 필터 조건
+ * @returns 학생 배열
+ */
+export async function getStudentsByDepartment(
+  departmentName: string,
+  params: Omit<GetStudentsParams, 'class_id'> = {}
+): Promise<Student[]> {
+  // students와 classes를 조인하여 부서로 필터링
+  let query = supabase
+    .from('students')
+    .select('*, classes!inner(department)')
+    .eq('classes.department', departmentName);
+
+  // 활성 상태 필터 (기본값: true)
+  const isActive = params.is_active !== undefined ? params.is_active : true;
+  query = query.eq('is_active', isActive);
+
+  // 이름 검색
+  if (params.search) {
+    query = query.ilike('name', `%${params.search}%`);
+  }
+
+  // 이름 순 정렬
+  query = query.order('name', { ascending: true });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (query as any);
+
+  if (error) {
+    throw error;
+  }
+
+  // classes 정보는 제거하고 student 정보만 반환
+  return (data?.map(item => {
+    const { classes, ...student } = item;
+    return student;
+  }) ?? []) as Student[];
+}
+
+/**
  * 학생 ID로 단일 학생 조회
  * @param studentId 학생 ID
  * @returns 학생 정보 또는 null
@@ -139,7 +181,7 @@ export async function updateStudent(
     ...input,
     updated_at: new Date().toISOString(),
   };
-  
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await ((supabase
     .from('students') as any)
@@ -188,8 +230,8 @@ export async function updateStudentAllergies(
   // 모든 항목이 비어있으면 null로 저장
   const allergiesData =
     (!allergies.food || allergies.food.length === 0) &&
-    (!allergies.medicine || allergies.medicine.length === 0) &&
-    !allergies.other
+      (!allergies.medicine || allergies.medicine.length === 0) &&
+      !allergies.other
       ? null
       : allergies;
 
@@ -232,7 +274,7 @@ export async function updateStudentPhoto(
  */
 export async function deleteStudent(studentId: string): Promise<void> {
   const updateData = { is_active: false, updated_at: new Date().toISOString() };
-  
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await ((supabase
     .from('students') as any)

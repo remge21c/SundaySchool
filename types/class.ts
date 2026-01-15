@@ -10,6 +10,7 @@ export interface Class {
   main_teacher_id: string;
   is_active?: boolean;
   created_at: string;
+  student_count?: number;
 }
 
 export interface ClassGroup {

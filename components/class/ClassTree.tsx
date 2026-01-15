@@ -18,6 +18,8 @@ import { cn } from '@/lib/utils';
 interface ClassTreeProps {
   onSelect: (classId: string) => void;
   selectedClassId?: string;
+  onSelectDepartment?: (departmentName: string) => void;
+  selectedDepartment?: string;
   year?: number;
 }
 
@@ -69,7 +71,13 @@ function groupClassesByDepartment(classes: Class[], departments: Department[]): 
     });
 }
 
-export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
+export function ClassTree({
+  onSelect,
+  selectedClassId,
+  onSelectDepartment,
+  selectedDepartment,
+  year
+}: ClassTreeProps) {
   const { user } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState<boolean | null>(null);
 
@@ -163,29 +171,43 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
     <div className="space-y-1">
       {(groupedClasses || []).map((group) => {
         const isExpanded = expandedDepartments.has(group.department);
+        const isDeptSelected = selectedDepartment === group.department;
 
         return (
           <div key={group.department} className="space-y-1">
             {/* 부서 헤더 */}
-            <button
-              onClick={() => toggleDepartment(group.department)}
-              className={cn(
-                'w-full flex items-center gap-2 px-3 py-2 text-sm font-semibold',
-                'hover:bg-gray-100 rounded-md transition-colors',
-                'text-left'
-              )}
-              aria-expanded={isExpanded}
-            >
-              {isExpanded ? (
-                <ChevronDown className="h-4 w-4 text-gray-500" />
-              ) : (
-                <ChevronRight className="h-4 w-4 text-gray-500" />
-              )}
-              <span>{group.department}</span>
-              <span className="ml-auto text-xs text-gray-500">
-                ({group.classes.length})
-              </span>
-            </button>
+            <div className="flex items-center w-full">
+              <button
+                onClick={() => toggleDepartment(group.department)}
+                className="p-2 hover:bg-gray-100 rounded-md transition-colors text-gray-500"
+              >
+                {isExpanded ? (
+                  <ChevronDown className="h-4 w-4" />
+                ) : (
+                  <ChevronRight className="h-4 w-4" />
+                )}
+              </button>
+              <button
+                onClick={() => {
+                  if (onSelectDepartment) {
+                    onSelectDepartment(group.department);
+                  } else {
+                    toggleDepartment(group.department);
+                  }
+                }}
+                className={cn(
+                  'flex-1 flex items-center gap-2 px-2 py-2 text-sm font-semibold',
+                  'hover:bg-gray-100 rounded-md transition-colors',
+                  'text-left',
+                  isDeptSelected && 'bg-primary/10 text-primary'
+                )}
+              >
+                <span>{group.department}</span>
+                <span className="ml-auto text-xs text-gray-500">
+                  ({group.classes.length})
+                </span>
+              </button>
+            </div>
 
             {/* 반 목록 */}
             {isExpanded && (
@@ -204,7 +226,14 @@ export function ClassTree({ onSelect, selectedClassId, year }: ClassTreeProps) {
                         isSelected && 'bg-primary/10 text-primary font-medium'
                       )}
                     >
-                      <span className="flex-1">{cls.name}</span>
+                      <span className="flex-1">
+                        {cls.name}
+                        {cls.student_count !== undefined && (
+                          <span className="ml-1 text-xs text-gray-400">
+                            ({cls.student_count}명)
+                          </span>
+                        )}
+                      </span>
                     </button>
                   );
                 })}

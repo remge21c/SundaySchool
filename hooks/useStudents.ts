@@ -9,6 +9,7 @@ import {
   getStudentsByClass,
   getStudentById,
   getAllStudents,
+  getStudentsByDepartment,
 } from '@/lib/supabase/students';
 import type { Student, GetStudentsParams } from '@/types/student';
 
@@ -30,6 +31,29 @@ export function useStudentsByClass(
       return getStudentsByClass(classId, params);
     },
     enabled: !!classId, // classId가 있을 때만 쿼리 실행
+    staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
+    gcTime: 10 * 60 * 1000, // 10분간 캐시 유지
+  });
+}
+
+/**
+ * 부서별 학생 리스트 조회 훅
+ * @param departmentName 부서명
+ * @param params 추가 필터 조건
+ */
+export function useStudentsByDepartment(
+  departmentName: string | null | undefined,
+  params: Omit<GetStudentsParams, 'class_id'> = {}
+) {
+  return useQuery({
+    queryKey: ['students', 'department', departmentName, params],
+    queryFn: () => {
+      if (!departmentName) {
+        throw new Error('departmentName is required');
+      }
+      return getStudentsByDepartment(departmentName, params);
+    },
+    enabled: !!departmentName, // departmentName이 있을 때만 쿼리 실행
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
     gcTime: 10 * 60 * 1000, // 10분간 캐시 유지
   });

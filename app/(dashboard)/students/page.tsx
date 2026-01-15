@@ -12,7 +12,7 @@ import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { useStudentsByClass, useAllStudents } from '@/hooks/useStudents';
+import { useStudentsByClass, useAllStudents, useStudentsByDepartment } from '@/hooks/useStudents';
 import { useAllClasses, useClassesByTeacher } from '@/hooks/useClasses';
 import { StudentAddForm } from '@/components/student/StudentAddForm';
 import { useAuth } from '@/hooks/useAuth';
@@ -25,13 +25,14 @@ export default function StudentsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAddFormOpen, setIsAddFormOpen] = useState(false);
   const [isAutoSelected, setIsAutoSelected] = useState(false); // 자동 선택 여부 추적
 
   // 반 목록 조회
   const { data: classes } = useAllClasses();
-  
+
   // 교사의 담당 반 조회
   const { data: teacherClasses } = useClassesByTeacher(user?.id, undefined);
 
@@ -41,13 +42,28 @@ export default function StudentsPage() {
     { search: searchQuery || undefined }
   );
 
-  // 전체 학생 목록 조회 (반 선택 안 했을 때)
+  // 선택된 부서의 학생 목록 조회
+  const { data: studentsByDepartment, isLoading: isLoadingByDepartment } = useStudentsByDepartment(
+    selectedDepartment || undefined,
+    { search: searchQuery || undefined }
+  );
+
+  // 전체 학생 목록 조회 (반/부서 선택 안 했을 때)
   const { data: allStudents, isLoading: isLoadingAll } = useAllStudents({
     search: searchQuery || undefined,
   });
 
-  const students = selectedClassId ? studentsByClass : allStudents;
-  const isLoading = selectedClassId ? isLoadingByClass : isLoadingAll;
+  const students = selectedClassId
+    ? studentsByClass
+    : selectedDepartment
+      ? studentsByDepartment
+      : allStudents;
+
+  const isLoading = selectedClassId
+    ? isLoadingByClass
+    : selectedDepartment
+      ? isLoadingByDepartment
+      : isLoadingAll;
 
   // 선택된 반 정보
   const selectedClass = classes?.find((c) => c.id === selectedClassId);
@@ -62,16 +78,26 @@ export default function StudentsPage() {
     // 사용자 역할 확인
     getUserRole().then((role) => {
       // 관리자가 아니고, 교사이며, 담당 반이 있고, 아직 반이 선택되지 않았으면
-      if (role !== 'admin' && role === 'teacher' && teacherClasses && teacherClasses.length > 0 && !selectedClassId) {
+      if (role !== 'admin' && role === 'teacher' && teacherClasses && teacherClasses.length > 0 && !selectedClassId && !selectedDepartment) {
         // 첫 번째 담당 반을 자동 선택
         setSelectedClassId(teacherClasses[0].id);
         setIsAutoSelected(true);
       }
     });
-  }, [user, authLoading, teacherClasses, selectedClassId, isAutoSelected]);
+  }, [user, authLoading, teacherClasses, selectedClassId, selectedDepartment, isAutoSelected]);
 
   const handleStudentClick = (studentId: string) => {
     router.push(`/students/${studentId}`);
+  };
+
+  const handleClassSelect = (classId: string) => {
+    setSelectedClassId(classId);
+    setSelectedDepartment(null); // 반 선택 시 부서 선택 해제
+  };
+
+  const handleDepartmentSelect = (departmentName: string) => {
+    setSelectedDepartment(departmentName);
+    setSelectedClassId(null); // 부서 선택 시 반 선택 해제
   };
 
   return (
@@ -85,8 +111,10 @@ export default function StudentsPage() {
         {/* 반 선택 사이드바 */}
         <div className="md:w-64 md:flex-shrink-0">
           <ClassSidebar
-            onSelect={setSelectedClassId}
+            onSelect={handleClassSelect}
             selectedClassId={selectedClassId || undefined}
+            onSelectDepartment={handleDepartmentSelect}
+            selectedDepartment={selectedDepartment || undefined}
           />
         </div>
 
@@ -112,10 +140,13 @@ export default function StudentsPage() {
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="flex-1"
                 />
-                {selectedClass && (
+                {(selectedClass || selectedDepartment) && (
                   <Button
                     variant="outline"
-                    onClick={() => setSelectedClassId(null)}
+                    onClick={() => {
+                      setSelectedClassId(null);
+                      setSelectedDepartment(null);
+                    }}
                   >
                     전체 보기
                   </Button>
@@ -124,15 +155,17 @@ export default function StudentsPage() {
             </CardContent>
           </Card>
 
-          {/* 선택된 반 정보 */}
-          {selectedClass && (
+          {/* 선택된 반/부서 정보 */}
+          {(selectedClass || selectedDepartment) && (
             <Card>
               <CardHeader>
-                <CardTitle>선택된 반</CardTitle>
+                <CardTitle>{selectedClass ? '선택된 반' : '선택된 부서'}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-lg font-semibold">
-                  {selectedClass.department} - {selectedClass.name}
+                  {selectedClass
+                    ? `${selectedClass.department} - ${selectedClass.name}`
+                    : selectedDepartment}
                 </p>
               </CardContent>
             </Card>
@@ -150,7 +183,9 @@ export default function StudentsPage() {
                   <CardDescription>
                     {selectedClass
                       ? `${selectedClass.department} ${selectedClass.name} 학생 목록`
-                      : '전체 학생 목록'}
+                      : selectedDepartment
+                        ? `${selectedDepartment} 전체 학생 목록`
+                        : '전체 학생 목록'}
                     {students && ` (${students.length}명)`}
                   </CardDescription>
                 </div>
@@ -174,7 +209,7 @@ export default function StudentsPage() {
                   <p className="text-gray-500">
                     {searchQuery
                       ? '검색 결과가 없습니다.'
-                      : selectedClass
+                      : (selectedClass || selectedDepartment)
                         ? '등록된 학생이 없습니다.'
                         : '반을 선택하거나 검색어를 입력해주세요.'}
                   </p>
@@ -190,22 +225,22 @@ export default function StudentsPage() {
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between">
                           <div className="flex-1">
-                        <div className="flex items-center gap-3">
-                          {(student as any).photo_url ? (
-                            <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
-                              <img
-                                src={(student as any).photo_url}
-                                alt={student.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                              <span className="text-blue-600 font-semibold">
-                                {student.name.charAt(0)}
-                              </span>
-                            </div>
-                          )}
+                            <div className="flex items-center gap-3">
+                              {(student as any).photo_url ? (
+                                <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                                  <img
+                                    src={(student as any).photo_url}
+                                    alt={student.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                  <span className="text-blue-600 font-semibold">
+                                    {student.name.charAt(0)}
+                                  </span>
+                                </div>
+                              )}
                               <div>
                                 <div className="font-semibold text-base">{student.name}</div>
                                 <div className="text-sm text-gray-600">

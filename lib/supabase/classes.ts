@@ -11,8 +11,12 @@ import type { Class } from '@/types/class';
  * 모든 반 조회
  * @returns 반 배열
  */
+/**
+ * 모든 반 조회
+ * @returns 반 배열
+ */
 export async function getAllClasses(year?: number): Promise<Class[]> {
-  let query = supabase.from('classes').select('*');
+  let query = supabase.from('classes').select('*, students(count)');
 
   // 연도 필터 (기본값: 현재 연도)
   if (year) {
@@ -32,7 +36,11 @@ export async function getAllClasses(year?: number): Promise<Class[]> {
     throw error;
   }
 
-  return (data ?? []) as Class[];
+  return (data?.map((item: any) => ({
+    ...item,
+    student_count: item.students?.[0]?.count || 0,
+    students: undefined // cleanup
+  })) ?? []) as Class[];
 }
 
 /**
@@ -45,7 +53,7 @@ export async function getClassesByDepartment(
   department: string,
   year?: number
 ): Promise<Class[]> {
-  let query = supabase.from('classes').select('*').eq('department', department);
+  let query = supabase.from('classes').select('*, students(count)').eq('department', department);
 
   // 연도 필터
   if (year) {
@@ -65,7 +73,11 @@ export async function getClassesByDepartment(
     throw error;
   }
 
-  return (data ?? []) as Class[];
+  return (data?.map((item: any) => ({
+    ...item,
+    student_count: item.students?.[0]?.count || 0,
+    students: undefined
+  })) ?? []) as Class[];
 }
 
 /**
@@ -77,7 +89,7 @@ export async function getClassById(classId: string): Promise<Class | null> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase
     .from('classes')
-    .select('*')
+    .select('*, students(count)')
     .eq('id', classId)
     .single() as any);
 
@@ -89,7 +101,13 @@ export async function getClassById(classId: string): Promise<Class | null> {
     throw error;
   }
 
-  return data as Class;
+  const result = {
+    ...data,
+    student_count: data.students?.[0]?.count || 0,
+    students: undefined
+  };
+
+  return result as Class;
 }
 
 /**
@@ -109,7 +127,7 @@ export async function getClassesByTeacher(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: mainTeacherClasses, error: mainTeacherError } = await ((supabase
     .from('classes') as any)
-    .select('*')
+    .select('*, students(count)')
     .eq('main_teacher_id', teacherId)
     .eq('year', currentYear));
 
@@ -125,10 +143,10 @@ export async function getClassesByTeacher(
     .eq('teacher_id', teacherId));
 
   // 디버깅 로그
-  console.log('[getClassesByTeacher] teacherId:', teacherId);
-  console.log('[getClassesByTeacher] mainTeacherClasses:', mainTeacherClasses?.length);
-  console.log('[getClassesByTeacher] classTeachersData:', classTeachersData);
-  console.log('[getClassesByTeacher] classTeachersError:', classTeachersError);
+  // console.log('[getClassesByTeacher] teacherId:', teacherId);
+  // console.log('[getClassesByTeacher] mainTeacherClasses:', mainTeacherClasses?.length);
+  // console.log('[getClassesByTeacher] classTeachersData:', classTeachersData);
+  // console.log('[getClassesByTeacher] classTeachersError:', classTeachersError);
 
   // class_teachers 테이블이 아직 생성되지 않은 경우 (404 오류) 빈 배열로 처리
   if (classTeachersError) {
@@ -139,13 +157,17 @@ export async function getClassesByTeacher(
       classTeachersError.message?.includes('relation') ||
       classTeachersError.message?.includes('does not exist')) {
       // 테이블이 아직 생성되지 않았으므로 빈 배열 반환
-      return (mainTeacherClasses ?? []) as Class[];
+      return (mainTeacherClasses?.map((item: any) => ({
+        ...item,
+        student_count: item.students?.[0]?.count || 0,
+        students: undefined
+      })) ?? []) as Class[];
     }
     throw classTeachersError;
   }
 
   const classTeacherIds = (classTeachersData ?? []).map((row: any) => row.class_id);
-  console.log('[getClassesByTeacher] classTeacherIds:', classTeacherIds);
+  // console.log('[getClassesByTeacher] classTeacherIds:', classTeacherIds);
 
   // class_teachers로 배정된 반 조회
   let classTeacherClasses: Class[] = [];
@@ -153,7 +175,7 @@ export async function getClassesByTeacher(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const { data, error } = await ((supabase
       .from('classes') as any)
-      .select('*')
+      .select('*, students(count)')
       .in('id', classTeacherIds)
       .eq('year', currentYear));
 
@@ -165,15 +187,19 @@ export async function getClassesByTeacher(
   }
 
   // 두 결과를 합치고 중복 제거
-  const allClasses = [...(mainTeacherClasses ?? []), ...classTeacherClasses];
+  const allRawClasses = [...(mainTeacherClasses ?? []), ...classTeacherClasses];
   const uniqueClasses = Array.from(
-    new Map(allClasses.map((cls) => [cls.id, cls])).values()
+    new Map(allRawClasses.map((cls) => [cls.id, cls])).values()
   );
 
   // 이름 순 정렬
   uniqueClasses.sort((a, b) => a.name.localeCompare(b.name, 'ko'));
 
-  return uniqueClasses;
+  return uniqueClasses.map((item: any) => ({
+    ...item,
+    student_count: item.students?.[0]?.count || item.student_count || 0,
+    students: undefined
+  })) as Class[];
 }
 
 /**
