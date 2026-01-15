@@ -301,7 +301,7 @@ export async function getNextYearClasses(year?: number) {
  * 연도 전환 실행
  * (1월 1일에 실행하거나 관리자가 수동 실행)
  */
-export async function executeYearTransition(): Promise<{
+export async function executeYearTransition(executedBy?: string): Promise<{
     success: boolean;
     error?: string;
     stats?: {

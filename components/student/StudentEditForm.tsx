@@ -45,6 +45,8 @@ export function StudentEditForm({
   const [gender, setGender] = useState(student.gender || '');
   const [schoolName, setSchoolName] = useState(student.school_name || '');
   const [parentContact, setParentContact] = useState(student.parent_contact);
+  const [parentName, setParentName] = useState(student.parent_name || '');
+  const [phoneNumber, setPhoneNumber] = useState(student.phone_number || '');
   const [address, setAddress] = useState(student.address || '');
   const [error, setError] = useState<string | null>(null);
 
@@ -57,6 +59,8 @@ export function StudentEditForm({
       setGender(student.gender || '');
       setSchoolName(student.school_name || '');
       setParentContact(student.parent_contact);
+      setParentName(student.parent_name || '');
+      setPhoneNumber(student.phone_number || '');
       setAddress(student.address || '');
       setError(null);
     }
@@ -70,14 +74,14 @@ export function StudentEditForm({
       // 쿼리 무효화로 프로필 새로고침
       queryClient.invalidateQueries({ queryKey: ['student-profile', student.id] });
       queryClient.invalidateQueries({ queryKey: ['students'] });
-      
+
       setError(null);
-      
+
       // 성공 콜백 실행
       if (onSuccess) {
         onSuccess();
       }
-      
+
       // 모달 닫기
       onClose();
     },
@@ -137,6 +141,18 @@ export function StudentEditForm({
       updateData.address = address.trim();
     } else {
       updateData.address = null;
+    }
+
+    if (parentName.trim()) {
+      updateData.parent_name = parentName.trim();
+    } else {
+      updateData.parent_name = null;
+    }
+
+    if (phoneNumber.trim()) {
+      updateData.phone_number = phoneNumber.trim();
+    } else {
+      updateData.phone_number = null;
     }
 
     // 학생 정보 업데이트
@@ -245,6 +261,32 @@ export function StudentEditForm({
                 placeholder="010-1234-5678"
               />
             </div>
+
+            {/* 보호자 이름 */}
+            <div className="space-y-2">
+              <label htmlFor="parent-name" className="text-sm font-medium">보호자 이름</label>
+              <Input
+                id="parent-name"
+                type="text"
+                value={parentName}
+                onChange={(e) => setParentName(e.target.value)}
+                disabled={mutation.isPending}
+                placeholder="보호자 성함"
+              />
+            </div>
+
+            {/* 학생 전화번호 */}
+            <div className="space-y-2">
+              <label htmlFor="phone-number" className="text-sm font-medium">학생 전화번호</label>
+              <Input
+                id="phone-number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                disabled={mutation.isPending}
+                placeholder="010-0000-0000"
+              />
+            </div>
           </div>
 
           {/* 주소 */}
@@ -282,6 +324,6 @@ export function StudentEditForm({
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog>
+    </Dialog >
   );
 }

@@ -53,6 +53,8 @@ export function StudentAddForm({
   const [gender, setGender] = useState('');
   const [schoolName, setSchoolName] = useState('');
   const [parentContact, setParentContact] = useState('');
+  const [parentName, setParentName] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [address, setAddress] = useState('');
   const [selectedClassId, setSelectedClassId] = useState(defaultClassId || '');
   const [error, setError] = useState<string | null>(null);
@@ -64,7 +66,10 @@ export function StudentAddForm({
     setBirthday('');
     setGender('');
     setSchoolName('');
+    setSchoolName('');
     setParentContact('');
+    setParentName('');
+    setPhoneNumber('');
     setAddress('');
     setSelectedClassId(defaultClassId || '');
     setError(null);
@@ -84,14 +89,14 @@ export function StudentAddForm({
     onSuccess: () => {
       // 쿼리 무효화로 학생 목록 새로고침
       queryClient.invalidateQueries({ queryKey: ['students'] });
-      
+
       resetForm();
-      
+
       // 성공 콜백 실행
       if (onSuccess) {
         onSuccess();
       }
-      
+
       // 모달 닫기
       onClose();
     },
@@ -133,6 +138,8 @@ export function StudentAddForm({
       gender: gender || null,
       school_name: schoolName.trim() || null,
       parent_contact: parentContact.trim(),
+      parent_name: parentName.trim() || null,
+      phone_number: phoneNumber.trim() || null,
       address: address.trim() || null,
       class_id: selectedClassId,
       is_active: true,
@@ -261,6 +268,32 @@ export function StudentAddForm({
                 onChange={(e) => setParentContact(e.target.value)}
                 placeholder="010-1234-5678"
                 required
+                disabled={mutation.isPending}
+              />
+            </div>
+
+            {/* 보호자 이름 */}
+            <div className="space-y-2">
+              <Label htmlFor="parentName">보호자 이름</Label>
+              <Input
+                id="parentName"
+                type="text"
+                value={parentName}
+                onChange={(e) => setParentName(e.target.value)}
+                placeholder="보호자 성함"
+                disabled={mutation.isPending}
+              />
+            </div>
+
+            {/* 학생 전화번호 */}
+            <div className="space-y-2">
+              <Label htmlFor="phoneNumber">학생 전화번호</Label>
+              <Input
+                id="phoneNumber"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
+                placeholder="010-0000-0000"
                 disabled={mutation.isPending}
               />
             </div>

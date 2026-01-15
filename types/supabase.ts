@@ -61,6 +61,8 @@ export interface Database {
           grade: number;
           parent_contact: string;
           address: string | null;
+          parent_name: string | null;
+          phone_number: string | null;
           allergies: Json | null;
           photo_url: string | null;
           is_active: boolean;
@@ -77,6 +79,8 @@ export interface Database {
           grade: number;
           parent_contact: string;
           address?: string | null;
+          parent_name?: string | null;
+          phone_number?: string | null;
           allergies?: Json | null;
           photo_url?: string | null;
           is_active?: boolean;
@@ -93,6 +97,8 @@ export interface Database {
           grade?: number;
           parent_contact?: string;
           address?: string | null;
+          parent_name?: string | null;
+          phone_number?: string | null;
           allergies?: Json | null;
           photo_url?: string | null;
           is_active?: boolean;

@@ -12,6 +12,8 @@ export interface Student {
   school_name: string | null;
   grade: number;
   parent_contact: string;
+  parent_name: string | null;
+  phone_number: string | null;
   address: string | null;
   allergies: Json | null;
   photo_url: string | null;
