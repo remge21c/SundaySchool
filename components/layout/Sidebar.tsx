@@ -60,12 +60,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       path: '/students',
       icon: <Users className="h-5 w-5" />,
     },
-    {
-      label: '장기 결석 알림',
-      path: '/dashboard',
-      icon: <AlertCircle className="h-5 w-5" />,
-      badge: user ? <AbsenceAlertBadge teacherId={user.id} /> : null,
-    },
+
     {
       label: '관리자',
       path: '/admin',
