@@ -13,7 +13,7 @@ interface AuthState {
 
 interface AuthActions {
   signIn: (email: string, password: string) => Promise<any>;
-  signUp: (email: string, password: string, fullName: string) => Promise<any>;
+  signUp: (email: string, password: string, fullName: string, position?: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher') => Promise<any>;
   signOut: () => Promise<void>;
 }
 
