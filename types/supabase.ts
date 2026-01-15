@@ -107,7 +107,8 @@ export interface Database {
           name: string;
           department: string;
           year: number;
-          main_teacher_id: string;
+          main_teacher_id: string | null;
+          is_active: boolean;
           created_at: string;
         };
         Insert: {
@@ -115,7 +116,8 @@ export interface Database {
           name: string;
           department: string;
           year: number;
-          main_teacher_id: string;
+          main_teacher_id?: string | null;
+          is_active?: boolean;
           created_at?: string;
         };
         Update: {
@@ -123,7 +125,8 @@ export interface Database {
           name?: string;
           department?: string;
           year?: number;
-          main_teacher_id?: string;
+          main_teacher_id?: string | null;
+          is_active?: boolean;
           created_at?: string;
         };
       };
@@ -267,6 +270,126 @@ export interface Database {
           updated_by?: string | null;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      // 학년도 전환 관련 테이블
+      class_assignments: {
+        Row: {
+          id: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          start_date: string;
+          end_date: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          start_date: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          class_id?: string;
+          year?: number;
+          start_date?: string;
+          end_date?: string | null;
+          created_at?: string;
+        };
+      };
+      student_grade_history: {
+        Row: {
+          id: string;
+          student_id: string;
+          year: number;
+          grade: number;
+          school_name: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          year: number;
+          grade: number;
+          school_name?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          year?: number;
+          grade?: number;
+          school_name?: string | null;
+          created_at?: string;
+        };
+      };
+      temp_class_assignments: {
+        Row: {
+          id: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          student_id: string;
+          class_id: string;
+          year: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          student_id?: string;
+          class_id?: string;
+          year?: number;
+          created_at?: string;
+        };
+      };
+      year_transition_logs: {
+        Row: {
+          id: string;
+          from_year: number;
+          to_year: number;
+          status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'rolled_back';
+          started_at: string | null;
+          completed_at: string | null;
+          executed_by: string | null;
+          total_students: number;
+          assigned_students: number;
+          error_message: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          from_year: number;
+          to_year: number;
+          status: 'pending' | 'in_progress' | 'completed' | 'failed' | 'rolled_back';
+          started_at?: string | null;
+          completed_at?: string | null;
+          executed_by?: string | null;
+          total_students?: number;
+          assigned_students?: number;
+          error_message?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          from_year?: number;
+          to_year?: number;
+          status?: 'pending' | 'in_progress' | 'completed' | 'failed' | 'rolled_back';
+          started_at?: string | null;
+          completed_at?: string | null;
+          executed_by?: string | null;
+          total_students?: number;
+          assigned_students?: number;
+          error_message?: string | null;
+          created_at?: string;
         };
       };
     };
