@@ -1,11 +1,11 @@
 /**
  * 반 관리 컴포넌트
- * 반 생성, 수정, 삭제 및 교사 배정
+ * 반 생성, 수정, 삭제 (교사 배정은 교사 관리에서 처리)
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { getAllClasses } from '@/lib/supabase/classes';
 import {
@@ -14,7 +14,6 @@ import {
   updateClass,
   deleteClass,
   getClassTeachers,
-  assignTeachersToClass,
 } from '@/lib/supabase/admin';
 import { getAllDepartmentsForAdmin } from '@/lib/supabase/departments';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -54,7 +53,6 @@ export function ClassManagement() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingClass, setEditingClass] = useState<Class | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string>('');
-  const [selectedTeacherIds, setSelectedTeacherIds] = useState<Set<string>>(new Set());
 
   // 반 목록 조회
   const {
@@ -89,38 +87,6 @@ export function ClassManagement() {
     retry: 1,
   });
 
-  // 반에 배정된 교사 목록 조회
-  const { data: classTeachers = [] } = useQuery({
-    queryKey: ['class-teachers', editingClass?.id],
-    queryFn: async () => {
-      if (!editingClass?.id) return [];
-      try {
-        return await getClassTeachers(editingClass.id);
-      } catch (error) {
-        // class_teachers 테이블이 없거나 에러가 발생하면 빈 배열 반환
-        console.warn('교사 배정 정보를 불러올 수 없습니다:', error);
-        return [];
-      }
-    },
-    enabled: !!editingClass?.id,
-    retry: false, // 에러 발생 시 재시도하지 않음
-  });
-
-  // 편집 중인 반이 변경되면 배정된 교사 목록 로드
-  useEffect(() => {
-    if (editingClass) {
-      // classTeachers가 배열인 경우에만 Set으로 변환
-      if (Array.isArray(classTeachers) && classTeachers.length > 0) {
-        setSelectedTeacherIds(new Set(classTeachers));
-      } else {
-        setSelectedTeacherIds(new Set());
-      }
-    } else {
-      setSelectedTeacherIds(new Set());
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingClass?.id, JSON.stringify(classTeachers)]);
-
   // 반 생성
   const createMutation = useMutation({
     mutationFn: createClass,
@@ -132,15 +98,12 @@ export function ClassManagement() {
 
   // 반 수정
   const updateMutation = useMutation({
-    mutationFn: async ({ classId, input, teacherIds }: { classId: string; input: any; teacherIds: string[] }) => {
+    mutationFn: async ({ classId, input }: { classId: string; input: any }) => {
       await updateClass(classId, input);
-      await assignTeachersToClass(classId, teacherIds);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['classes'] });
-      queryClient.invalidateQueries({ queryKey: ['class-teachers'] });
       setEditingClass(null);
-      setSelectedTeacherIds(new Set());
     },
   });
 
@@ -164,7 +127,7 @@ export function ClassManagement() {
   // 부서 순서대로 반 목록 정렬
   const getDepartmentSortOrder = (departmentName: string): number => {
     const department = departments.find((dept) => dept.name === departmentName);
-    return department?.sort_order ?? 999; // 부서를 찾을 수 없으면 마지막에 배치
+    return department?.sort_order ?? 999;
   };
 
   const sortedClasses = [...(classes || [])].sort((a, b) => {
@@ -173,7 +136,6 @@ export function ClassManagement() {
     if (orderA !== orderB) {
       return orderA - orderB;
     }
-    // 같은 부서 내에서는 반 이름으로 정렬
     return a.name.localeCompare(b.name, 'ko');
   });
 
@@ -187,28 +149,17 @@ export function ClassManagement() {
     return teacher?.full_name || teacher?.email || '알 수 없음';
   };
 
-  const getTeacherDisplayName = (teacherId: string | null) => {
-    if (!teacherId || teacherId === 'unassigned') return '교사 선택';
-    const teacher = teachers.find((t: Teacher) => t.id === teacherId);
-    if (teacher) {
-      return teacher.full_name ? `${teacher.full_name} (${teacher.email})` : teacher.email;
-    }
-    return '교사 선택';
-  };
-
   const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const department = formData.get('department') as string;
-    const main_teacher_id_raw = formData.get('main_teacher_id') as string;
-    const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
 
     createMutation.mutate({
       name,
       department,
       year: CURRENT_YEAR,
-      main_teacher_id,
+      main_teacher_id: null,
     });
   };
 
@@ -219,15 +170,10 @@ export function ClassManagement() {
     const formData = new FormData(e.currentTarget);
     const name = formData.get('name') as string;
     const department = formData.get('department') as string;
-    const main_teacher_id_raw = formData.get('main_teacher_id') as string;
-    const main_teacher_id = main_teacher_id_raw && main_teacher_id_raw !== 'unassigned' ? main_teacher_id_raw : null;
-
-    const teacherIds = Array.from(selectedTeacherIds);
 
     updateMutation.mutate({
       classId: editingClass.id,
-      input: { name, department, main_teacher_id },
-      teacherIds,
+      input: { name, department },
     });
   };
 
@@ -235,18 +181,6 @@ export function ClassManagement() {
     if (confirm('정말 이 반을 삭제하시겠습니까? 학생 데이터도 함께 삭제됩니다.')) {
       deleteMutation.mutate(classId);
     }
-  };
-
-  const handleTeacherToggle = (teacherId: string) => {
-    setSelectedTeacherIds((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(teacherId)) {
-        newSet.delete(teacherId);
-      } else {
-        newSet.add(teacherId);
-      }
-      return newSet;
-    });
   };
 
   if (classesLoading || teachersLoading || departmentsLoading) {
@@ -325,7 +259,7 @@ export function ClassManagement() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>반 생성</DialogTitle>
-            <DialogDescription>새로운 반을 생성합니다.</DialogDescription>
+            <DialogDescription>새로운 반을 생성합니다. 교사 배정은 교사 관리에서 설정하세요.</DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate}>
             <div className="space-y-4 py-4">
@@ -353,28 +287,6 @@ export function ClassManagement() {
                   required
                 />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="main_teacher_id">담임 교사 (선택)</Label>
-                <Select name="main_teacher_id" defaultValue="unassigned">
-                  <SelectTrigger>
-                    <SelectValue placeholder="교사 선택" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="unassigned">미배정</SelectItem>
-                    {(teachers || []).map((teacher: Teacher) => {
-                      const teacherDisplayName = teacher.full_name
-                        ? `${teacher.full_name} (${teacher.email})`
-                        : teacher.email;
-
-                      return (
-                        <SelectItem key={teacher.id} value={teacher.id}>
-                          {teacherDisplayName}
-                        </SelectItem>
-                      );
-                    })}
-                  </SelectContent>
-                </Select>
-              </div>
             </div>
             <DialogFooter>
               <Button
@@ -394,10 +306,10 @@ export function ClassManagement() {
 
       {/* 반 수정 다이얼로그 */}
       <Dialog open={!!editingClass} onOpenChange={() => setEditingClass(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent>
           <DialogHeader>
             <DialogTitle>반 수정</DialogTitle>
-            <DialogDescription>반 정보를 수정합니다.</DialogDescription>
+            <DialogDescription>반 정보를 수정합니다. 교사 배정은 교사 관리에서 설정하세요.</DialogDescription>
           </DialogHeader>
           {editingClass && (
             <form onSubmit={handleUpdate}>
@@ -429,64 +341,6 @@ export function ClassManagement() {
                     defaultValue={editingClass.name}
                     required
                   />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="edit-main_teacher_id">담임 교사</Label>
-                  <Select
-                    name="main_teacher_id"
-                    defaultValue={editingClass.main_teacher_id || 'unassigned'}
-                  >
-                    <SelectTrigger>
-                      <SelectValue>
-                        {getTeacherDisplayName(editingClass.main_teacher_id)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="unassigned">미배정</SelectItem>
-                      {(teachers || []).map((teacher: Teacher) => {
-                        const teacherDisplayName = teacher.full_name
-                          ? `${teacher.full_name} (${teacher.email})`
-                          : teacher.email;
-
-                        return (
-                          <SelectItem key={teacher.id} value={teacher.id}>
-                            {teacherDisplayName}
-                          </SelectItem>
-                        );
-                      })}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>교사 배정 (여러 명 선택 가능)</Label>
-                  <div className="border rounded-md p-4 max-h-60 overflow-y-auto">
-                    <div className="space-y-2">
-                      {(teachers || []).map((teacher: Teacher) => {
-                        const teacherDisplayName = teacher.full_name
-                          ? `${teacher.full_name} (${teacher.email})`
-                          : teacher.email;
-                        const isChecked = selectedTeacherIds.has(teacher.id);
-
-                        return (
-                          <div key={teacher.id} className="flex items-center space-x-2">
-                            <input
-                              type="checkbox"
-                              id={`teacher-${teacher.id}`}
-                              checked={isChecked}
-                              onChange={() => handleTeacherToggle(teacher.id)}
-                              className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
-                            />
-                            <label
-                              htmlFor={`teacher-${teacher.id}`}
-                              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-                            >
-                              {teacherDisplayName}
-                            </label>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               </div>
               <DialogFooter>
@@ -527,14 +381,13 @@ function ClassCard({
       try {
         return await getClassTeachers(cls.id);
       } catch (error) {
-        // 에러 발생 시 빈 배열 반환 (테이블이 아직 생성되지 않았거나 RLS 정책 문제)
         console.warn(`반 ${cls.id}의 교사 배정 정보를 불러올 수 없습니다:`, error);
         return [];
       }
     },
     staleTime: 5 * 60 * 1000,
-    retry: false, // 에러 발생 시 재시도하지 않음
-    refetchOnWindowFocus: false, // 윈도우 포커스 시 재조회하지 않음
+    retry: false,
+    refetchOnWindowFocus: false,
   });
 
   const mainTeacherName = getTeacherName(cls.main_teacher_id);

@@ -11,11 +11,18 @@ import { User as SupabaseUser } from '@supabase/supabase-js';
 import { AbsenceAlertBadge } from '@/components/absence/AbsenceAlertBadge';
 import { useQuery } from '@tanstack/react-query';
 import { getAppName } from '@/lib/supabase/settings';
+import { supabase } from '@/lib/supabase/client';
 
 interface NavbarProps {
   onMenuClick: () => void;
   onLogout: () => void;
   user: SupabaseUser | null;
+}
+
+interface ClassAssignment {
+  id: string;
+  name: string;
+  department: string;
 }
 
 export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
@@ -26,6 +33,72 @@ export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
     staleTime: 5 * 60 * 1000, // 5분간 fresh 상태 유지
     refetchOnWindowFocus: false,
   });
+
+  // 교사의 소속 부서/반 정보 조회 (부서 순서대로 정렬)
+  const { data: teacherClasses = [] } = useQuery({
+    queryKey: ['teacher-classes', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+
+      // 먼저 부서 순서 조회
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: departments } = await (supabase.from('departments') as any)
+        .select('name, sort_order')
+        .order('sort_order', { ascending: true });
+
+      const deptOrder: Record<string, number> = {};
+      (departments || []).forEach((d: any, index: number) => {
+        deptOrder[d.name] = d.sort_order ?? index;
+      });
+
+      const assignments: ClassAssignment[] = [];
+      const addedClassIds = new Set<string>();
+
+      // 1. 담임 반 조회 (classes.main_teacher_id)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: mainClasses } = await (supabase.from('classes') as any)
+        .select('id, name, department')
+        .eq('main_teacher_id', user.id);
+
+      (mainClasses || []).forEach((cls: any) => {
+        if (!addedClassIds.has(cls.id)) {
+          assignments.push({ id: cls.id, name: cls.name, department: cls.department });
+          addedClassIds.add(cls.id);
+        }
+      });
+
+      // 2. 보조 교사 반 조회 (class_teachers)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { data: assistClasses } = await (supabase.from('class_teachers') as any)
+        .select('class_id, classes(id, name, department)')
+        .eq('teacher_id', user.id);
+
+      (assistClasses || []).forEach((item: any) => {
+        const cls = item.classes;
+        if (cls && !addedClassIds.has(cls.id)) {
+          assignments.push({ id: cls.id, name: cls.name, department: cls.department });
+          addedClassIds.add(cls.id);
+        }
+      });
+
+      // 부서 순서대로 정렬
+      assignments.sort((a, b) => {
+        const orderA = deptOrder[a.department] ?? 999;
+        const orderB = deptOrder[b.department] ?? 999;
+        return orderA - orderB;
+      });
+
+      return assignments;
+    },
+    enabled: !!user?.id,
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
+  });
+
+  // "유년부 1반 | 고등부 2반" 형식으로 반환
+  const teacherClassesDisplay = teacherClasses
+    .map(cls => `${cls.department} ${cls.name}`)
+    .join(' | ');
 
   return (
     <nav className="sticky top-0 z-30 bg-white border-b border-gray-200 shadow-sm">
@@ -43,11 +116,19 @@ export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
               <Menu className="h-6 w-6" />
             </Button>
 
-            {/* 로고/제목 */}
-            <div className="flex items-center">
-              <h1 className="text-xl font-bold text-gray-900">
+            {/* 로고/제목 및 소속 부서 */}
+            <div className="flex items-center gap-3">
+              <h1 className="text-lg font-semibold text-gray-600">
                 {appName}
               </h1>
+              {teacherClassesDisplay && (
+                <>
+                  <span className="text-gray-300 hidden sm:inline">|</span>
+                  <span className="text-xl font-bold text-blue-600 hidden sm:inline">
+                    {teacherClassesDisplay}
+                  </span>
+                </>
+              )}
             </div>
           </div>
 
@@ -81,6 +162,15 @@ export function Navbar({ onMenuClick, onLogout, user }: NavbarProps) {
             </Button>
           </div>
         </div>
+
+        {/* 모바일에서 소속 부서 표시 */}
+        {teacherClassesDisplay && (
+          <div className="sm:hidden pb-2 -mt-1">
+            <span className="text-lg font-bold text-blue-600">
+              {teacherClassesDisplay}
+            </span>
+          </div>
+        )}
       </div>
     </nav>
   );

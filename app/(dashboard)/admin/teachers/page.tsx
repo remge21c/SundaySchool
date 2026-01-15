@@ -1,11 +1,12 @@
 /**
  * 교사 관리 페이지
- * 관리자가 교사 목록을 확인하고 직책 및 권한을 관리하는 페이지
+ * 관리자 또는 부서 전체 권한자가 교사 목록을 확인하고 직책 및 권한을 관리하는 페이지
  */
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,12 +26,35 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
 import { supabase } from '@/lib/supabase/client';
-import { Users, Edit2, Save, X } from 'lucide-react';
+import { Users, Edit2, X, Plus, Building2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 // 직책 타입
 type TeacherPosition = 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
 type PermissionScope = 'department' | 'class';
+type ClassRole = 'main' | 'assistant';
+
+// 부서별 설정 타입
+interface DepartmentSetting {
+    position: TeacherPosition;
+    permission_scope: PermissionScope;
+}
+
+// 반별 역할 타입
+interface ClassAssignment {
+    classId: string;
+    role: ClassRole;
+}
 
 // 직책 한글 매핑
 const POSITION_LABELS: Record<TeacherPosition, string> = {
@@ -45,6 +69,12 @@ const POSITION_LABELS: Record<TeacherPosition, string> = {
 const SCOPE_LABELS: Record<PermissionScope, string> = {
     department: '부서 전체',
     class: '담당 반',
+};
+
+// 반 역할 한글 매핑
+const ROLE_LABELS: Record<ClassRole, string> = {
+    main: '담임',
+    assistant: '보조',
 };
 
 // 직책별 배지 색상
@@ -63,37 +93,133 @@ interface Teacher {
     phone_number: string | null;
     position: TeacherPosition;
     permission_scope: PermissionScope;
+    department_permissions: Record<string, DepartmentSetting>;
     department_id: string | null;
-    department_name: string | null; // 부서명 (기본)
-    department_names: string[]; // 소속 부서 목록 (담당 반에서 추출)
+    department_name: string | null;
+    department_names: string[];
     created_at: string;
-    assigned_classes: { id: string; name: string; department: string }[]; // 담당 반 배열 (부서 포함)
+    assigned_classes: { id: string; name: string; department: string; isMain: boolean }[];
 }
 
 interface Department {
     id: string;
     name: string;
+    sort_order: number;
 }
 
 interface ClassInfo {
     id: string;
     name: string;
     department: string;
+    main_teacher_id: string | null;
 }
 
 interface EditData {
-    position: TeacherPosition;
-    permission_scope: PermissionScope;
+    classAssignments: ClassAssignment[];
+    departmentSettings: Record<string, DepartmentSetting>;
+}
+
+interface CurrentUserProfile {
+    id: string;
+    role: string;
+    department_permissions: Record<string, DepartmentSetting>;
 }
 
 export default function TeachersPage() {
+    const { user } = useAuth();
+    const [currentUserProfile, setCurrentUserProfile] = useState<CurrentUserProfile | null>(null);
     const [teachers, setTeachers] = useState<Teacher[]>([]);
     const [departments, setDepartments] = useState<Department[]>([]);
     const [allClasses, setAllClasses] = useState<ClassInfo[]>([]);
     const [loading, setLoading] = useState(true);
-    const [editingId, setEditingId] = useState<string | null>(null);
+
+    // 부서 필터 상태
+    const [selectedDeptFilter, setSelectedDeptFilter] = useState<string | null>(null);
+
+    // Dialog 상태
+    const [editingTeacher, setEditingTeacher] = useState<Teacher | null>(null);
     const [editData, setEditData] = useState<EditData | null>(null);
+    const [editingDeptFilter, setEditingDeptFilter] = useState<string | null>(null); // 수정 중인 부서
     const [saving, setSaving] = useState(false);
+
+    // 반 추가용 상태
+    const [selectedDepartment, setSelectedDepartment] = useState<string>('');
+    const [selectedClassId, setSelectedClassId] = useState<string>('');
+
+    // 현재 사용자가 관리자인지 확인
+    const isAdmin = currentUserProfile?.role === 'admin';
+
+    // 현재 사용자의 부서 전체 권한 범위 (수정 가능한 부서)
+    const myDepartmentScope = useMemo(() => {
+        if (!currentUserProfile || isAdmin) return [];
+        const depts: string[] = [];
+        Object.entries(currentUserProfile.department_permissions || {}).forEach(([dept, setting]) => {
+            if (typeof setting === 'object' && setting.permission_scope === 'department') {
+                depts.push(dept);
+            }
+        });
+        return depts;
+    }, [currentUserProfile, isAdmin]);
+
+    // 사이드바에 표시할 부서 목록 (관리자: 전체, 비관리자: 부서 전체 권한이 있는 부서만)
+    const visibleDepartments = useMemo(() => {
+        if (isAdmin) {
+            return departments;
+        }
+        return departments.filter(d => myDepartmentScope.includes(d.name));
+    }, [departments, isAdmin, myDepartmentScope]);
+
+    // 선택된 부서에 해당하는 반 목록
+    const filteredClasses = useMemo(() => {
+        if (!selectedDepartment) return [];
+        return allClasses.filter(c => c.department === selectedDepartment);
+    }, [selectedDepartment, allClasses]);
+
+    // 기존 데이터 형식을 새 형식으로 변환하는 헬퍼
+    const migrateDepartmentPermissions = (
+        oldPerms: Record<string, any>,
+        defaultPosition: TeacherPosition,
+        defaultScope: PermissionScope
+    ): Record<string, DepartmentSetting> => {
+        const result: Record<string, DepartmentSetting> = {};
+        Object.entries(oldPerms || {}).forEach(([dept, value]) => {
+            if (typeof value === 'string') {
+                result[dept] = {
+                    position: defaultPosition,
+                    permission_scope: value as PermissionScope,
+                };
+            } else if (typeof value === 'object' && value !== null) {
+                result[dept] = {
+                    position: value.position || defaultPosition,
+                    permission_scope: value.permission_scope || defaultScope,
+                };
+            }
+        });
+        return result;
+    };
+
+    // 현재 사용자 프로필 조회
+    useEffect(() => {
+        const fetchCurrentUserProfile = async () => {
+            if (!user?.id) return;
+
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { data } = await (supabase.from('profiles') as any)
+                .select('id, role, department_permissions')
+                .eq('id', user.id)
+                .single();
+
+            if (data) {
+                setCurrentUserProfile({
+                    id: data.id,
+                    role: data.role,
+                    department_permissions: data.department_permissions || {},
+                });
+            }
+        };
+
+        fetchCurrentUserProfile();
+    }, [user?.id]);
 
     // 교사 목록 조회
     const fetchTeachers = async () => {
@@ -102,8 +228,8 @@ export default function TeachersPage() {
         // 1. 부서 목록 조회
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: deptData, error: deptError } = await (supabase.from('departments') as any)
-            .select('id, name')
-            .order('name', { ascending: true });
+            .select('id, name, sort_order')
+            .order('sort_order', { ascending: true });
 
         if (deptError) {
             console.warn('부서 목록 조회 오류:', deptError);
@@ -111,55 +237,57 @@ export default function TeachersPage() {
         const depts = deptData || [];
         setDepartments(depts);
 
-        // 부서 ID -> 이름 매핑
         const deptMap: Record<string, string> = {};
         depts.forEach((d: any) => { deptMap[d.id] = d.name; });
 
-        // 2. 반 목록 조회 (main_teacher_id 포함)
+        // 2. 반 목록 조회
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: classData } = await (supabase.from('classes') as any)
             .select('id, name, department, main_teacher_id');
-        setAllClasses((classData || []).map((c: any) => ({ id: c.id, name: c.name, department: c.department })));
+        setAllClasses((classData || []).map((c: any) => ({
+            id: c.id,
+            name: c.name,
+            department: c.department,
+            main_teacher_id: c.main_teacher_id
+        })));
 
-        // 반 ID -> 반 정보 매핑
-        const classMap: Record<string, { id: string; name: string; department: string }> = {};
+        const classMap: Record<string, ClassInfo> = {};
         (classData || []).forEach((c: any) => {
-            classMap[c.id] = { id: c.id, name: c.name, department: c.department };
+            classMap[c.id] = { id: c.id, name: c.name, department: c.department, main_teacher_id: c.main_teacher_id };
         });
 
-        // 3. 교사별 담당 반 매핑 (중복 방지용 Set 사용)
-        const mainTeacherClassMap: Record<string, { id: string; name: string; department: string }[]> = {};
-        const addedClassIds: Record<string, Set<string>> = {}; // 교사별로 추가된 class_id 추적
+        // 3. 교사별 담당 반 매핑
+        const teacherClassMap: Record<string, { id: string; name: string; department: string; isMain: boolean }[]> = {};
+        const addedClassIds: Record<string, Set<string>> = {};
 
-        // main_teacher_id로 담당 반 추가
         (classData || []).forEach((c: any) => {
             if (c.main_teacher_id) {
-                if (!mainTeacherClassMap[c.main_teacher_id]) {
-                    mainTeacherClassMap[c.main_teacher_id] = [];
+                if (!teacherClassMap[c.main_teacher_id]) {
+                    teacherClassMap[c.main_teacher_id] = [];
                     addedClassIds[c.main_teacher_id] = new Set();
                 }
                 if (!addedClassIds[c.main_teacher_id].has(c.id)) {
-                    mainTeacherClassMap[c.main_teacher_id].push({
+                    teacherClassMap[c.main_teacher_id].push({
                         id: c.id,
                         name: c.name,
-                        department: c.department
+                        department: c.department,
+                        isMain: true,
                     });
                     addedClassIds[c.main_teacher_id].add(c.id);
                 }
             }
         });
 
-        // 4. class_teachers에서 추가 담당 반 조회
+        // 4. class_teachers에서 보조 교사 조회
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const { data: classAssignments } = await (supabase
             .from('class_teachers') as any)
             .select('teacher_id, class_id');
 
-        // class_teachers 매핑 추가 (중복 방지)
         (classAssignments || []).forEach((ca: any) => {
             if (ca.class_id && classMap[ca.class_id]) {
-                if (!mainTeacherClassMap[ca.teacher_id]) {
-                    mainTeacherClassMap[ca.teacher_id] = [];
+                if (!teacherClassMap[ca.teacher_id]) {
+                    teacherClassMap[ca.teacher_id] = [];
                     addedClassIds[ca.teacher_id] = new Set();
                 }
                 if (!addedClassIds[ca.teacher_id]) {
@@ -167,10 +295,11 @@ export default function TeachersPage() {
                 }
                 if (!addedClassIds[ca.teacher_id].has(ca.class_id)) {
                     const classInfo = classMap[ca.class_id];
-                    mainTeacherClassMap[ca.teacher_id].push({
+                    teacherClassMap[ca.teacher_id].push({
                         id: classInfo.id,
                         name: classInfo.name,
-                        department: classInfo.department
+                        department: classInfo.department,
+                        isMain: false,
                     });
                     addedClassIds[ca.teacher_id].add(ca.class_id);
                 }
@@ -191,11 +320,10 @@ export default function TeachersPage() {
             return;
         }
 
-        // 6. 교사 데이터 조합 (부서는 담당 반의 부서에서 추출)
+        // 6. 교사 데이터 조합
         setTeachers((profilesData || []).map((t: any) => {
-            const rawClasses = mainTeacherClassMap[t.id] || [];
+            const rawClasses = teacherClassMap[t.id] || [];
 
-            // 최종 중복 제거: 부서+반이름 기준으로 유니크한 클래스만 유지 (데이터베이스에 중복된 반이 있어도 UI상 하나만 표시)
             const seenKeys = new Set<string>();
             const assignedClasses = rawClasses.filter(c => {
                 const key = `${c.department}-${c.name}`;
@@ -204,17 +332,25 @@ export default function TeachersPage() {
                 return true;
             });
 
-            // 담당 반에서 유니크한 부서 목록 추출
             const uniqueDepartments = [...new Set(assignedClasses.map(c => c.department).filter(Boolean))];
             const derivedDepartment = uniqueDepartments.length > 0 ? uniqueDepartments[0] : null;
 
+            const defaultPosition = t.position || 'teacher';
+            const defaultScope = t.permission_scope || 'class';
+            const deptPerms = migrateDepartmentPermissions(
+                t.department_permissions || {},
+                defaultPosition,
+                defaultScope
+            );
+
             return {
                 ...t,
-                position: t.position || 'teacher',
-                permission_scope: t.permission_scope || 'class',
+                position: defaultPosition,
+                permission_scope: defaultScope,
+                department_permissions: deptPerms,
                 department_name: derivedDepartment || (t.department_id ? deptMap[t.department_id] : null),
                 department_names: uniqueDepartments,
-                assigned_classes: assignedClasses.map(c => ({ id: c.id, name: c.name, department: c.department })),
+                assigned_classes: assignedClasses,
             };
         }));
 
@@ -225,206 +361,660 @@ export default function TeachersPage() {
         fetchTeachers();
     }, []);
 
-    // 편집 시작
-    const startEdit = (teacher: Teacher) => {
-        setEditingId(teacher.id);
-        setEditData({
-            position: teacher.position,
-            permission_scope: teacher.permission_scope,
+    // 교사가 내 권한 범위에 해당하는지 확인
+    const canEditTeacher = (teacher: Teacher): boolean => {
+        if (isAdmin) return true;
+        if (myDepartmentScope.length === 0) return false;
+        return teacher.department_names.some(dept => myDepartmentScope.includes(dept));
+    };
+
+    // 필터된 교사 목록 (부서 전체 권한 기준 + 부서 필터)
+    const visibleTeachers = useMemo(() => {
+        let result = teachers;
+
+        // 1. 부서 전체 권한이 있는 부서의 교사만 표시
+        if (!isAdmin && myDepartmentScope.length > 0) {
+            result = result.filter(t =>
+                t.department_names.some(dept => myDepartmentScope.includes(dept))
+            );
+        } else if (!isAdmin) {
+            result = [];
+        }
+
+        // 2. 부서 필터 (사이드바에서 선택한 부서)
+        if (selectedDeptFilter) {
+            result = result.filter(t => t.department_names.includes(selectedDeptFilter));
+        }
+
+        return result;
+    }, [teachers, isAdmin, myDepartmentScope, selectedDeptFilter]);
+
+    // 편집 시작 (선택된 부서 필터 전달)
+    const startEdit = (teacher: Teacher, deptFilter: string | null) => {
+        const currentDepts = [...new Set(teacher.assigned_classes.map(c => c.department))];
+        const initialSettings: Record<string, DepartmentSetting> = {};
+        currentDepts.forEach(dept => {
+            initialSettings[dept] = teacher.department_permissions[dept] || {
+                position: teacher.position || 'teacher',
+                permission_scope: teacher.permission_scope || 'class',
+            };
         });
+
+        const initialAssignments: ClassAssignment[] = teacher.assigned_classes.map(c => ({
+            classId: c.id,
+            role: c.isMain ? 'main' : 'assistant',
+        }));
+
+        setEditingTeacher(teacher);
+        setEditingDeptFilter(deptFilter); // 수정 중인 부서 설정
+        setEditData({
+            classAssignments: initialAssignments,
+            departmentSettings: initialSettings,
+        });
+        setSelectedDepartment(deptFilter || '');
+        setSelectedClassId('');
     };
 
     // 편집 취소
     const cancelEdit = () => {
-        setEditingId(null);
+        setEditingTeacher(null);
         setEditData(null);
+        setEditingDeptFilter(null);
+        setSelectedDepartment('');
+        setSelectedClassId('');
     };
 
-    // 저장
-    const saveEdit = async (teacherId: string) => {
-        if (!editData) return;
-
-        setSaving(true);
-
-        // 1. 프로필 업데이트
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const { error: profileError } = await (supabase
-            .from('profiles') as any)
-            .update({
-                position: editData.position,
-                permission_scope: editData.permission_scope,
-                updated_at: new Date().toISOString(),
-            })
-            .eq('id', teacherId);
-
-        if (profileError) {
-            console.error('프로필 저장 오류:', profileError);
-            alert('저장에 실패했습니다: ' + profileError.message);
-            setSaving(false);
+    // 반 추가
+    const addClassToList = () => {
+        if (!selectedClassId || !editData) return;
+        if (editData.classAssignments.some(a => a.classId === selectedClassId)) {
+            alert('이미 추가된 반입니다.');
             return;
         }
 
-        await fetchTeachers();
-        setEditingId(null);
-        setEditData(null);
-        setSaving(false);
+        const newClass = allClasses.find(c => c.id === selectedClassId);
+        const newSettings = { ...editData.departmentSettings };
+        if (newClass && !newSettings[newClass.department]) {
+            newSettings[newClass.department] = {
+                position: 'teacher',
+                permission_scope: 'class',
+            };
+        }
+
+        setEditData({
+            ...editData,
+            classAssignments: [...editData.classAssignments, { classId: selectedClassId, role: 'assistant' }],
+            departmentSettings: newSettings,
+        });
+        setSelectedClassId('');
     };
+
+    // 반 제거
+    const removeClassFromList = (classId: string) => {
+        if (!editData) return;
+        const removedClass = allClasses.find(c => c.id === classId);
+        const newAssignments = editData.classAssignments.filter(a => a.classId !== classId);
+
+        const newSettings = { ...editData.departmentSettings };
+        if (removedClass) {
+            const remainingInDept = newAssignments.filter(a => {
+                const cls = allClasses.find(c => c.id === a.classId);
+                return cls?.department === removedClass.department;
+            });
+            if (remainingInDept.length === 0) {
+                delete newSettings[removedClass.department];
+            }
+        }
+
+        setEditData({
+            ...editData,
+            classAssignments: newAssignments,
+            departmentSettings: newSettings,
+        });
+    };
+
+    // 반 역할 변경
+    const updateClassRole = (classId: string, role: ClassRole) => {
+        if (!editData) return;
+        setEditData({
+            ...editData,
+            classAssignments: editData.classAssignments.map(a =>
+                a.classId === classId ? { ...a, role } : a
+            ),
+        });
+    };
+
+    // 반 변경 (같은 부서 내 다른 반으로 변경)
+    const updateClassId = (oldClassId: string, newClassId: string, dept: string) => {
+        if (!editData) return;
+        if (oldClassId === newClassId) return;
+        // 이미 존재하는 반인지 확인
+        if (editData.classAssignments.some(a => a.classId === newClassId)) {
+            alert('이미 추가된 반입니다.');
+            return;
+        }
+        const oldAssignment = editData.classAssignments.find(a => a.classId === oldClassId);
+        if (!oldAssignment) return;
+
+        setEditData({
+            ...editData,
+            classAssignments: editData.classAssignments.map(a =>
+                a.classId === oldClassId ? { ...a, classId: newClassId } : a
+            ),
+        });
+    };
+
+    // 부서별 설정 변경
+    const updateDepartmentSetting = (
+        dept: string,
+        field: keyof DepartmentSetting,
+        value: TeacherPosition | PermissionScope
+    ) => {
+        if (!editData) return;
+        setEditData({
+            ...editData,
+            departmentSettings: {
+                ...editData.departmentSettings,
+                [dept]: {
+                    ...editData.departmentSettings[dept],
+                    [field]: value,
+                },
+            },
+        });
+    };
+
+    // 저장
+    const saveEdit = async () => {
+        if (!editingTeacher || !editData) return;
+
+        setSaving(true);
+
+        try {
+            // 1. 프로필 업데이트
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const { error: profileError } = await (supabase
+                .from('profiles') as any)
+                .update({
+                    department_permissions: editData.departmentSettings,
+                    updated_at: new Date().toISOString(),
+                })
+                .eq('id', editingTeacher.id);
+
+            if (profileError) {
+                console.error('프로필 저장 오류:', profileError);
+                alert('저장에 실패했습니다: ' + profileError.message);
+                setSaving(false);
+                return;
+            }
+
+            // 2. 기존 main_teacher_id 해제
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase
+                .from('classes') as any)
+                .update({ main_teacher_id: null })
+                .eq('main_teacher_id', editingTeacher.id);
+
+            // 3. class_teachers에서 기존 레코드 삭제
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            await (supabase
+                .from('class_teachers') as any)
+                .delete()
+                .eq('teacher_id', editingTeacher.id);
+
+            // 4. 새로운 배정 적용
+            for (const assignment of editData.classAssignments) {
+                if (assignment.role === 'main') {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (supabase
+                        .from('classes') as any)
+                        .update({ main_teacher_id: editingTeacher.id })
+                        .eq('id', assignment.classId);
+                } else {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                    await (supabase
+                        .from('class_teachers') as any)
+                        .insert({ class_id: assignment.classId, teacher_id: editingTeacher.id });
+                }
+            }
+
+            // 5. 목록 갱신
+            await fetchTeachers();
+
+            cancelEdit();
+        } catch (error: any) {
+            console.error('저장 오류:', error);
+            alert('저장에 실패했습니다: ' + (error?.message || '알 수 없는 오류'));
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    // 현재 편집 중인 부서별 반 그룹
+    const groupedAssignedClasses = useMemo(() => {
+        if (!editData) return {};
+        const groups: Record<string, { cls: ClassInfo; role: ClassRole }[]> = {};
+        editData.classAssignments.forEach(a => {
+            const cls = allClasses.find(c => c.id === a.classId);
+            if (cls) {
+                if (!groups[cls.department]) groups[cls.department] = [];
+                groups[cls.department].push({ cls, role: a.role });
+            }
+        });
+        return groups;
+    }, [editData, allClasses]);
+
+    // 편집 다이얼로그에서 수정 가능한 부서
+    const editableDepartments = useMemo(() => {
+        if (isAdmin) return Object.keys(groupedAssignedClasses);
+        return Object.keys(groupedAssignedClasses).filter(dept => myDepartmentScope.includes(dept));
+    }, [groupedAssignedClasses, isAdmin, myDepartmentScope]);
+
+    // 반 추가 드롭다운용 부서 목록
+    const uniqueDepartments = useMemo(() => {
+        const deptSet = new Set(allClasses.map(c => c.department));
+        const allDepts = Array.from(deptSet);
+        if (isAdmin) return allDepts;
+        return allDepts.filter(dept => myDepartmentScope.includes(dept));
+    }, [allClasses, isAdmin, myDepartmentScope]);
+
+    if (loading || !currentUserProfile) {
+        return (
+            <>
+                <PageHeader
+                    title="교사 관리"
+                    description="교사 목록을 확인하고 직책 및 권한을 관리합니다"
+                />
+                <div className="text-center py-8 text-gray-500">로딩 중...</div>
+            </>
+        );
+    }
 
     return (
         <>
             <PageHeader
                 title="교사 관리"
-                description="교사 목록을 확인하고 직책 및 권한을 관리합니다"
+                description={isAdmin
+                    ? "교사 목록을 확인하고 직책 및 권한을 관리합니다"
+                    : `내 부서의 교사를 관리합니다`
+                }
             />
 
-            <Card>
-                <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                        <Users className="h-5 w-5" />
-                        교사 목록
-                    </CardTitle>
-                    <CardDescription>
-                        총 {teachers.length}명의 교사가 등록되어 있습니다
-                    </CardDescription>
-                </CardHeader>
-                <CardContent>
-                    {loading ? (
-                        <div className="text-center py-8 text-gray-500">로딩 중...</div>
-                    ) : teachers.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">등록된 교사가 없습니다</div>
-                    ) : (
-                        <div className="overflow-x-auto">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow>
-                                        <TableHead>이름</TableHead>
-                                        <TableHead>부서</TableHead>
-                                        <TableHead>담당반</TableHead>
-                                        <TableHead>직책</TableHead>
-                                        <TableHead>권한</TableHead>
-                                        <TableHead className="text-right">관리</TableHead>
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {teachers.map((teacher) => (
-                                        <TableRow key={teacher.id}>
-                                            <TableCell>
-                                                <div className="font-medium">{teacher.full_name || '(이름 없음)'}</div>
-                                                <div className="text-xs text-gray-500">{teacher.email}</div>
-                                            </TableCell>
-                                            <TableCell>
-                                                {teacher.department_names.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {teacher.department_names.map((dept, idx) => (
-                                                            <Badge key={idx} variant="secondary" className="text-xs">
-                                                                {dept}
-                                                            </Badge>
-                                                        ))}
+            {/* 좌우 분할 레이아웃 */}
+            <div className="flex gap-4">
+                {/* 왼쪽: 부서 사이드바 */}
+                <div className="w-48 flex-shrink-0">
+                    <Card>
+                        <CardHeader className="pb-2">
+                            <CardTitle className="text-sm flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                부서
+                            </CardTitle>
+                        </CardHeader>
+                        <CardContent className="p-2">
+                            <div className="space-y-1">
+                                <button
+                                    onClick={() => setSelectedDeptFilter(null)}
+                                    className={cn(
+                                        'w-full text-left px-3 py-2 rounded-md text-sm transition-colors',
+                                        selectedDeptFilter === null
+                                            ? 'bg-blue-100 text-blue-700 font-medium'
+                                            : 'hover:bg-gray-100 text-gray-700'
+                                    )}
+                                >
+                                    전체 ({visibleTeachers.length})
+                                </button>
+                                {visibleDepartments.map((dept) => {
+                                    const count = teachers.filter(t => t.department_names.includes(dept.name)).length;
+                                    return (
+                                        <button
+                                            key={dept.id}
+                                            onClick={() => setSelectedDeptFilter(dept.name)}
+                                            className={cn(
+                                                'w-full text-left px-3 py-2 rounded-md text-sm transition-colors',
+                                                selectedDeptFilter === dept.name
+                                                    ? 'bg-blue-100 text-blue-700 font-medium'
+                                                    : 'hover:bg-gray-100 text-gray-700'
+                                            )}
+                                        >
+                                            {dept.name} ({count})
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* 오른쪽: 교사 목록 */}
+                <div className="flex-1">
+                    <Card>
+                        <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                                <Users className="h-5 w-5" />
+                                {selectedDeptFilter ? `${selectedDeptFilter} 교사` : '전체 교사'}
+                            </CardTitle>
+                            <CardDescription>
+                                {visibleTeachers.length}명
+                            </CardDescription>
+                        </CardHeader>
+                        <CardContent>
+                            {visibleTeachers.length === 0 ? (
+                                <div className="text-center py-8 text-gray-500">
+                                    {selectedDeptFilter
+                                        ? `${selectedDeptFilter}에 배정된 교사가 없습니다`
+                                        : '교사가 없습니다'
+                                    }
+                                </div>
+                            ) : (
+                                <div className="overflow-x-auto">
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>이름</TableHead>
+                                                <TableHead>부서별 정보</TableHead>
+                                                <TableHead className="text-right">관리</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {visibleTeachers.map((teacher) => (
+                                                <TableRow key={teacher.id}>
+                                                    <TableCell>
+                                                        <div className="font-medium">{teacher.full_name || '(이름 없음)'}</div>
+                                                        <div className="text-xs text-gray-500">{teacher.email}</div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {(() => {
+                                                            // 부서 순서 맵 생성
+                                                            const deptOrderMap: Record<string, number> = {};
+                                                            departments.forEach((d, idx) => {
+                                                                deptOrderMap[d.name] = d.sort_order ?? idx;
+                                                            });
+
+                                                            // 권한이 있는 부서만 필터링 (관리자는 전체, 비관리자는 myDepartmentScope)
+                                                            let deptsToShow = isAdmin
+                                                                ? teacher.department_names
+                                                                : teacher.department_names.filter(d => myDepartmentScope.includes(d));
+
+                                                            // 선택된 부서 필터가 있으면 그 부서만 표시
+                                                            if (selectedDeptFilter) {
+                                                                deptsToShow = deptsToShow.filter(d => d === selectedDeptFilter);
+                                                            }
+
+                                                            // 부서 순서대로 정렬
+                                                            deptsToShow = [...deptsToShow].sort((a, b) => {
+                                                                const orderA = deptOrderMap[a] ?? 999;
+                                                                const orderB = deptOrderMap[b] ?? 999;
+                                                                return orderA - orderB;
+                                                            });
+
+                                                            if (deptsToShow.length === 0) {
+                                                                return <span className="text-gray-400 text-sm">배정된 부서 없음</span>;
+                                                            }
+
+                                                            return (
+                                                                <div className="space-y-2">
+                                                                    {deptsToShow.map((dept, idx) => {
+                                                                        const setting = teacher.department_permissions[dept] || {
+                                                                            position: teacher.position,
+                                                                            permission_scope: teacher.permission_scope,
+                                                                        };
+                                                                        const deptClasses = teacher.assigned_classes.filter(c => c.department === dept);
+                                                                        return (
+                                                                            <div key={idx} className="flex flex-wrap items-center gap-2 text-sm">
+                                                                                <Badge variant="secondary">{dept}</Badge>
+                                                                                <Badge className={POSITION_COLORS[setting.position]}>
+                                                                                    {POSITION_LABELS[setting.position]}
+                                                                                </Badge>
+                                                                                <span className="text-gray-500 text-xs">
+                                                                                    {SCOPE_LABELS[setting.permission_scope]}
+                                                                                </span>
+                                                                                <span className="text-gray-400">|</span>
+                                                                                {deptClasses.map((c, cIdx) => (
+                                                                                    <Badge
+                                                                                        key={cIdx}
+                                                                                        variant="outline"
+                                                                                        className={`text-xs ${c.isMain ? 'border-blue-400 text-blue-600' : ''}`}
+                                                                                    >
+                                                                                        {c.name} ({c.isMain ? '담임' : '보조'})
+                                                                                    </Badge>
+                                                                                ))}
+                                                                            </div>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </TableCell>
+                                                    <TableCell className="text-right">
+                                                        {canEditTeacher(teacher) && (
+                                                            <Button
+                                                                size="sm"
+                                                                variant="ghost"
+                                                                onClick={() => startEdit(teacher, selectedDeptFilter)}
+                                                            >
+                                                                <Edit2 className="h-4 w-4" />
+                                                            </Button>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </div>
+                            )}
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* 교사 수정 다이얼로그 */}
+            <Dialog open={!!editingTeacher} onOpenChange={(open) => !open && !saving && cancelEdit()}>
+                <DialogContent className="max-w-xl max-h-[90vh] overflow-y-auto">
+                    <DialogHeader>
+                        <DialogTitle>교사 정보 수정</DialogTitle>
+                        <DialogDescription>
+                            {editingTeacher?.full_name || '(이름 없음)'} ({editingTeacher?.email})
+                            {!isAdmin && <span className="block text-xs mt-1">내 부서 범위 내에서만 수정 가능합니다.</span>}
+                        </DialogDescription>
+                    </DialogHeader>
+
+                    {editData && (
+                        <div className="space-y-6 py-4">
+                            <div className="space-y-3">
+                                <Label>부서별 직책, 권한 및 담당 반</Label>
+
+                                <div className="space-y-4">
+                                    {Object.keys(groupedAssignedClasses).length === 0 ? (
+                                        <p className="text-sm text-gray-500">배정된 반이 없습니다.</p>
+                                    ) : (
+                                        Object.entries(groupedAssignedClasses).map(([dept, items]) => {
+                                            const setting = editData.departmentSettings[dept] || {
+                                                position: 'teacher',
+                                                permission_scope: 'class',
+                                            };
+                                            // 부서 필터가 선택된 경우: 해당 부서만 수정 가능
+                                            // 부서 필터가 없는 경우: 권한에 따라 수정 가능
+                                            const isEditable = editingDeptFilter
+                                                ? (dept === editingDeptFilter && (isAdmin || myDepartmentScope.includes(dept)))
+                                                : (isAdmin || myDepartmentScope.includes(dept));
+                                            return (
+                                                <div key={dept} className={`border rounded-lg p-3 ${isEditable ? 'bg-gray-50' : 'bg-gray-100 opacity-60'}`}>
+                                                    <div className="flex items-center gap-2 mb-3 pb-2 border-b">
+                                                        <span className="font-semibold text-sm">{dept}</span>
+                                                        {!isEditable && <span className="text-xs text-gray-500">(수정 불가)</span>}
                                                     </div>
-                                                ) : (
-                                                    <span className="text-gray-400 text-sm">-</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {teacher.assigned_classes.length > 0 ? (
-                                                    <div className="flex flex-wrap gap-1">
-                                                        {teacher.assigned_classes.map((c, idx) => (
-                                                            <Badge key={idx} variant="outline" className="text-xs">
-                                                                {c.department}-{c.name}
-                                                            </Badge>
-                                                        ))}
+
+                                                    <div className="grid grid-cols-2 gap-2 mb-3">
+                                                        <div>
+                                                            <Label className="text-xs text-gray-500">직책</Label>
+                                                            <Select
+                                                                value={setting.position}
+                                                                onValueChange={(value) => updateDepartmentSetting(dept, 'position', value as TeacherPosition)}
+                                                                disabled={saving || !isEditable}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-sm">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {Object.entries(POSITION_LABELS).map(([key, label]) => (
+                                                                        <SelectItem key={key} value={key} className="text-sm">
+                                                                            {label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
+                                                        <div>
+                                                            <Label className="text-xs text-gray-500">권한</Label>
+                                                            <Select
+                                                                value={setting.permission_scope}
+                                                                onValueChange={(value) => updateDepartmentSetting(dept, 'permission_scope', value as PermissionScope)}
+                                                                disabled={saving || !isEditable}
+                                                            >
+                                                                <SelectTrigger className="h-8 text-sm">
+                                                                    <SelectValue />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {Object.entries(SCOPE_LABELS).map(([key, label]) => (
+                                                                        <SelectItem key={key} value={key} className="text-sm">
+                                                                            {label}
+                                                                        </SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        </div>
                                                     </div>
-                                                ) : (
-                                                    <span className="text-gray-400 text-sm">-</span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {editingId === teacher.id ? (
-                                                    <Select
-                                                        value={editData?.position}
-                                                        onValueChange={(value) =>
-                                                            setEditData((prev) => prev ? { ...prev, position: value as TeacherPosition } : null)
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="w-32">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {Object.entries(POSITION_LABELS).map(([key, label]) => (
-                                                                <SelectItem key={key} value={key}>
-                                                                    {label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    <Badge className={POSITION_COLORS[teacher.position]}>
-                                                        {POSITION_LABELS[teacher.position]}
-                                                    </Badge>
-                                                )}
-                                            </TableCell>
-                                            <TableCell>
-                                                {editingId === teacher.id ? (
-                                                    <Select
-                                                        value={editData?.permission_scope}
-                                                        onValueChange={(value) =>
-                                                            setEditData((prev) => prev ? { ...prev, permission_scope: value as PermissionScope } : null)
-                                                        }
-                                                    >
-                                                        <SelectTrigger className="w-32">
-                                                            <SelectValue />
-                                                        </SelectTrigger>
-                                                        <SelectContent>
-                                                            {Object.entries(SCOPE_LABELS).map(([key, label]) => (
-                                                                <SelectItem key={key} value={key}>
-                                                                    {label}
-                                                                </SelectItem>
-                                                            ))}
-                                                        </SelectContent>
-                                                    </Select>
-                                                ) : (
-                                                    <span className="text-sm text-gray-600">
-                                                        {SCOPE_LABELS[teacher.permission_scope]}
-                                                    </span>
-                                                )}
-                                            </TableCell>
-                                            <TableCell className="text-right">
-                                                {editingId === teacher.id ? (
-                                                    <div className="flex gap-2 justify-end">
-                                                        <Button
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={cancelEdit}
-                                                            disabled={saving}
-                                                        >
-                                                            <X className="h-4 w-4" />
-                                                        </Button>
-                                                        <Button
-                                                            size="sm"
-                                                            onClick={() => saveEdit(teacher.id)}
-                                                            disabled={saving}
-                                                        >
-                                                            <Save className="h-4 w-4" />
-                                                        </Button>
+
+                                                    <div className="space-y-1">
+                                                        <Label className="text-xs text-gray-500">담당 반</Label>
+                                                        {items.map(({ cls, role }) => {
+                                                            // 해당 부서의 전체 반 목록
+                                                            const deptClasses = allClasses.filter(c => c.department === dept);
+                                                            return (
+                                                                <div
+                                                                    key={cls.id}
+                                                                    className="flex items-center justify-between py-1 px-2 bg-white rounded border"
+                                                                >
+                                                                    {/* 반 선택 드롭다운 */}
+                                                                    <Select
+                                                                        value={cls.id}
+                                                                        onValueChange={(value) => updateClassId(cls.id, value, dept)}
+                                                                        disabled={saving || !isEditable}
+                                                                    >
+                                                                        <SelectTrigger className="h-7 flex-1 text-sm mr-2">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {deptClasses.map((c) => (
+                                                                                <SelectItem key={c.id} value={c.id} className="text-sm">
+                                                                                    {c.name}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    {/* 역할 선택 */}
+                                                                    <Select
+                                                                        value={role}
+                                                                        onValueChange={(value) => updateClassRole(cls.id, value as ClassRole)}
+                                                                        disabled={saving || !isEditable}
+                                                                    >
+                                                                        <SelectTrigger className="h-7 w-20 text-xs">
+                                                                            <SelectValue />
+                                                                        </SelectTrigger>
+                                                                        <SelectContent>
+                                                                            {Object.entries(ROLE_LABELS).map(([key, label]) => (
+                                                                                <SelectItem key={key} value={key} className="text-xs">
+                                                                                    {label}
+                                                                                </SelectItem>
+                                                                            ))}
+                                                                        </SelectContent>
+                                                                    </Select>
+                                                                    {isEditable && (
+                                                                        <Button
+                                                                            size="sm"
+                                                                            variant="ghost"
+                                                                            className="h-6 w-6 p-0 ml-1 text-gray-400 hover:text-red-500"
+                                                                            onClick={() => removeClassFromList(cls.id)}
+                                                                            disabled={saving}
+                                                                        >
+                                                                            <X className="h-3 w-3" />
+                                                                        </Button>
+                                                                    )}
+                                                                </div>
+                                                            );
+                                                        })}
                                                     </div>
-                                                ) : (
-                                                    <Button
-                                                        size="sm"
-                                                        variant="ghost"
-                                                        onClick={() => startEdit(teacher)}
-                                                    >
-                                                        <Edit2 className="h-4 w-4" />
-                                                    </Button>
-                                                )}
-                                            </TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
+                                                </div>
+                                            );
+                                        })
+                                    )}
+                                </div>
+
+                                {uniqueDepartments.length > 0 && (
+                                    <div className="pt-3 border-t">
+                                        <p className="text-sm font-medium mb-2">반 추가</p>
+                                        <div className="flex gap-2">
+                                            <Select
+                                                value={selectedDepartment}
+                                                onValueChange={(value) => {
+                                                    setSelectedDepartment(value);
+                                                    setSelectedClassId('');
+                                                }}
+                                                disabled={saving}
+                                            >
+                                                <SelectTrigger className="flex-1">
+                                                    <SelectValue placeholder="부서" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {uniqueDepartments.map((dept) => (
+                                                        <SelectItem key={dept} value={dept}>
+                                                            {dept}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Select
+                                                value={selectedClassId}
+                                                onValueChange={setSelectedClassId}
+                                                disabled={saving || !selectedDepartment}
+                                            >
+                                                <SelectTrigger className="flex-1">
+                                                    <SelectValue placeholder="반" />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {filteredClasses.map((cls) => (
+                                                        <SelectItem key={cls.id} value={cls.id}>
+                                                            {cls.name}
+                                                        </SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+
+                                            <Button
+                                                size="sm"
+                                                onClick={addClassToList}
+                                                disabled={saving || !selectedClassId}
+                                            >
+                                                <Plus className="h-4 w-4" />
+                                            </Button>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     )}
-                </CardContent>
-            </Card>
+
+                    <DialogFooter>
+                        <Button variant="outline" onClick={cancelEdit} disabled={saving}>
+                            취소
+                        </Button>
+                        <Button onClick={saveEdit} disabled={saving}>
+                            {saving ? '저장 중...' : '저장'}
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog >
         </>
     );
 }

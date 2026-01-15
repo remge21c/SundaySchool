@@ -175,10 +175,10 @@ export async function assignTeachersToClass(
 
     // 테이블이 없으면 조용히 종료 (마이그레이션 전 상태)
     if (deleteError) {
-      if (deleteError.code === 'PGRST116' || 
-          deleteError.message?.includes('404') || 
-          deleteError.message?.includes('relation') || 
-          deleteError.message?.includes('does not exist')) {
+      if (deleteError.code === 'PGRST116' ||
+        deleteError.message?.includes('404') ||
+        deleteError.message?.includes('relation') ||
+        deleteError.message?.includes('does not exist')) {
         console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
         return;
       }
@@ -199,10 +199,10 @@ export async function assignTeachersToClass(
 
       if (insertError) {
         // 테이블이 없으면 조용히 종료
-        if (insertError.code === 'PGRST116' || 
-            insertError.message?.includes('404') || 
-            insertError.message?.includes('relation') || 
-            insertError.message?.includes('does not exist')) {
+        if (insertError.code === 'PGRST116' ||
+          insertError.message?.includes('404') ||
+          insertError.message?.includes('relation') ||
+          insertError.message?.includes('does not exist')) {
           console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
           return;
         }
@@ -211,12 +211,61 @@ export async function assignTeachersToClass(
     }
   } catch (error: any) {
     // 예상치 못한 에러인 경우에만 throw
-    if (error?.message?.includes('404') || 
-        error?.message?.includes('relation') || 
-        error?.message?.includes('does not exist')) {
+    if (error?.message?.includes('404') ||
+      error?.message?.includes('relation') ||
+      error?.message?.includes('does not exist')) {
       console.warn('class_teachers 테이블이 아직 생성되지 않았습니다. 마이그레이션을 실행해주세요.');
       return;
     }
     throw error;
+  }
+}
+
+/**
+ * 교사의 담당 반 목록 수정 (관리자 전용)
+ * @param teacherId 교사 ID
+ * @param classIds 새로 배정할 반 ID 목록
+ */
+export async function updateTeacherClasses(
+  teacherId: string,
+  classIds: string[]
+): Promise<void> {
+  // 1. 해당 교사가 main_teacher_id인 반들 중, 새 목록에 없는 반은 main_teacher_id = NULL
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: mainTeacherClasses } = await (supabase
+    .from('classes') as any)
+    .select('id')
+    .eq('main_teacher_id', teacherId);
+
+  const mainClassIds = (mainTeacherClasses || []).map((c: any) => c.id);
+  const classesToUnassign = mainClassIds.filter((id: string) => !classIds.includes(id));
+
+  // main_teacher_id 해제
+  for (const classId of classesToUnassign) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase
+      .from('classes') as any)
+      .update({ main_teacher_id: null })
+      .eq('id', classId);
+  }
+
+  // 2. class_teachers에서 해당 교사의 기존 레코드 전체 삭제
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await (supabase
+    .from('class_teachers') as any)
+    .delete()
+    .eq('teacher_id', teacherId);
+
+  // 3. 새로운 반 배정 추가
+  if (classIds.length > 0) {
+    const insertData = classIds.map((classId) => ({
+      class_id: classId,
+      teacher_id: teacherId,
+    }));
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    await (supabase
+      .from('class_teachers') as any)
+      .insert(insertData);
   }
 }

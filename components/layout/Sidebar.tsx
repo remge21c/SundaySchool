@@ -7,12 +7,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Calendar, AlertCircle, X, Users, Settings, CalendarClock, UserCog } from 'lucide-react';
+import { Home, Calendar, X, Users, Settings, CalendarClock, UserCog } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { User as SupabaseUser } from '@supabase/supabase-js';
-import { AbsenceAlertBadge } from '@/components/absence/AbsenceAlertBadge';
 import { isAdmin } from '@/lib/utils/auth';
+import { supabase } from '@/lib/supabase/client';
 
 interface SidebarProps {
   isOpen: boolean;
@@ -28,20 +28,40 @@ interface NavItem {
   icon: React.ReactNode;
   badge?: React.ReactNode;
   adminOnly?: boolean;
+  departmentScopeAllowed?: boolean; // 부서 전체 권한자도 접근 가능
 }
 
 export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
   const router = useRouter();
   const [isAdminUser, setIsAdminUser] = useState(false);
+  const [hasDepartmentScope, setHasDepartmentScope] = useState(false);
 
   useEffect(() => {
-    const checkAdmin = async () => {
-      if (user) {
-        const admin = await isAdmin();
-        setIsAdminUser(admin);
+    const checkPermissions = async () => {
+      if (!user) return;
+
+      // Admin 확인
+      const admin = await isAdmin();
+      setIsAdminUser(admin);
+
+      // 부서 전체 권한 확인
+      if (!admin) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { data } = await (supabase.from('profiles') as any)
+          .select('department_permissions')
+          .eq('id', user.id)
+          .single();
+
+        if (data?.department_permissions) {
+          const hasDeptScope = Object.values(data.department_permissions).some(
+            (setting: any) =>
+              typeof setting === 'object' && setting?.permission_scope === 'department'
+          );
+          setHasDepartmentScope(hasDeptScope);
+        }
       }
     };
-    checkAdmin();
+    checkPermissions();
   }, [user]);
 
   const navItems: NavItem[] = [
@@ -72,6 +92,7 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       path: '/admin/teachers',
       icon: <UserCog className="h-5 w-5" />,
       adminOnly: true,
+      departmentScopeAllowed: true, // 부서 전체 권한자도 접근 가능
     },
     {
       label: '학년도 전환',
@@ -81,10 +102,13 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
     },
   ];
 
-  // 관리자가 아닌 경우 관리자 메뉴 필터링
-  const visibleNavItems = (navItems || []).filter(
-    (item) => !item.adminOnly || isAdminUser
-  );
+  // 메뉴 필터링: admin이거나, departmentScopeAllowed이고 hasDepartmentScope인 경우 표시
+  const visibleNavItems = (navItems || []).filter((item) => {
+    if (!item.adminOnly) return true;
+    if (isAdminUser) return true;
+    if (item.departmentScopeAllowed && hasDepartmentScope) return true;
+    return false;
+  });
 
   const handleNavClick = (path: string) => {
     router.push(path);
@@ -155,7 +179,9 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="truncate font-medium">{user.email}</p>
-                  <p className="text-xs text-gray-500">교사</p>
+                  <p className="text-xs text-gray-500">
+                    {isAdminUser ? '관리자' : hasDepartmentScope ? '부서 관리자' : '교사'}
+                  </p>
                 </div>
               </div>
             </div>
