@@ -15,7 +15,6 @@ import { DepartmentManagement } from '@/components/admin/DepartmentManagement';
 import { AppNameSettings } from '@/components/admin/AppNameSettings';
 import { TalentRuleManagement } from '@/components/admin/TalentRuleManagement';
 import { BadgeManagement } from '@/components/admin/BadgeManagement';
-import { YearTransition } from '@/components/admin/YearTransition';
 import { Separator } from '@/components/ui/separator';
 
 export default function AdminPage() {
@@ -100,8 +99,6 @@ export default function AdminPage() {
         <TalentRuleManagement />
         <Separator />
         <BadgeManagement />
-        <Separator />
-        <YearTransition />
       </div>
     </>
   );

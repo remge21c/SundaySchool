@@ -7,7 +7,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Home, Calendar, AlertCircle, X, Users, Settings } from 'lucide-react';
+import { Home, Calendar, AlertCircle, X, Users, Settings, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { User as SupabaseUser } from '@supabase/supabase-js';
@@ -70,6 +70,12 @@ export function Sidebar({ isOpen, onClose, currentPath, user }: SidebarProps) {
       label: '관리자',
       path: '/admin',
       icon: <Settings className="h-5 w-5" />,
+      adminOnly: true,
+    },
+    {
+      label: '학년도 전환',
+      path: '/admin/year-transition',
+      icon: <CalendarClock className="h-5 w-5" />,
       adminOnly: true,
     },
   ];
