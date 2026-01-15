@@ -243,14 +243,14 @@ export async function transferStudentsToDepartment(
   studentIds: string[],
   targetClassId: string
 ): Promise<void> {
-  const { error } = await supabase
-    .from('students')
+  const { error } = await ((supabase
+    .from('students') as any)
     .update({
       class_id: targetClassId,
       grade: 0, // 미배정 상태로 학년 초기화
       updated_at: new Date().toISOString()
-    } as any)
-    .in('id', studentIds);
+    })
+    .in('id', studentIds));
 
   if (error) throw error;
 }
@@ -281,10 +281,10 @@ export async function promoteStudentsGrade(studentIds: string[]): Promise<number
     // 0학년(미배정) → 1학년, 그 외 +1
     const newGrade = currentGrade === 0 ? 1 : currentGrade + 1;
 
-    const { error: updateError } = await supabase
-      .from('students')
-      .update({ grade: newGrade, updated_at: new Date().toISOString() } as any)
-      .eq('id', student.id);
+    const { error: updateError } = await ((supabase
+      .from('students') as any)
+      .update({ grade: newGrade, updated_at: new Date().toISOString() })
+      .eq('id', student.id));
 
     if (!updateError) {
       promotedCount++;
