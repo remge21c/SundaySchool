@@ -180,10 +180,10 @@ export async function getAllStudents(
  * @param targetClassId 이동할 반 ID
  */
 export async function updateStudentsClass(studentIds: string[], targetClassId: string): Promise<void> {
-  const { error } = await supabase
-    .from('students')
-    .update({ class_id: targetClassId, updated_at: new Date().toISOString() } as any)
-    .in('id', studentIds);
+  const { error } = await ((supabase
+    .from('students') as any)
+    .update({ class_id: targetClassId, updated_at: new Date().toISOString() })
+    .in('id', studentIds));
 
   if (error) throw error;
 }
@@ -213,10 +213,10 @@ export async function graduateStudents(
     updateData.is_active = false;
   }
 
-  const { error } = await supabase
-    .from('students')
+  const { error } = await ((supabase
+    .from('students') as any)
     .update(updateData)
-    .in('id', studentIds);
+    .in('id', studentIds));
 
   if (error) throw error;
 }
