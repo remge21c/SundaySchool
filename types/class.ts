@@ -8,6 +8,7 @@ export interface Class {
   department: string;
   year: number;
   main_teacher_id: string;
+  is_active?: boolean;
   created_at: string;
 }
 
