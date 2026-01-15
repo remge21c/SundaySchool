@@ -306,15 +306,15 @@ export default function StudentsPage() {
 
         {/* 메인 컨텐츠 */}
         <div className="flex-1 space-y-6">
-          {/* 검색 및 필터 */}
+          {/* 검색 */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
                 <Search className="h-5 w-5" />
-                검색 및 필터
+                검색
               </CardTitle>
               <CardDescription>
-                학생 이름으로 검색하거나 학년별로 필터링할 수 있습니다
+                학생 이름으로 검색할 수 있습니다
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -327,27 +327,12 @@ export default function StudentsPage() {
                   className="flex-1"
                 />
 
-                <Select value={selectedGrade} onValueChange={setSelectedGrade}>
-                  <SelectTrigger className="w-full sm:w-[120px]">
-                    <SelectValue placeholder="학년" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">전학년</SelectItem>
-                    {[1, 2, 3, 4, 5, 6].map((grade) => (
-                      <SelectItem key={grade} value={grade.toString()}>
-                        {grade}학년
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-
-                {(selectedClass || selectedDepartment || selectedGrade !== 'all' || searchQuery) && (
+                {(selectedClass || selectedDepartment || searchQuery) && (
                   <Button
                     variant="outline"
                     onClick={() => {
                       setSelectedClassId(null);
                       setSelectedDepartment(null);
-                      setSelectedGrade('all');
                       setSearchQuery('');
                     }}
                   >

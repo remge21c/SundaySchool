@@ -18,18 +18,18 @@ interface DepartmentAttendanceStatsProps {
 }
 
 export function DepartmentAttendanceStats({ department, date, className }: DepartmentAttendanceStatsProps) {
-    // 통계 조회
+    // 통계 조회 (캐싱 5분)
     const { data: stats, isLoading: statsLoading, error: statsError } = useQuery({
         queryKey: ['department-attendance-stats', department, date],
         queryFn: () => getDepartmentAttendanceStats(department, date),
-        staleTime: 30 * 1000,
+        staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
     });
 
-    // 결석자 목록 조회
+    // 결석자 목록 조회 (캐싱 5분)
     const { data: absentees, isLoading: absenteesLoading } = useQuery({
         queryKey: ['department-absentees', department, date],
         queryFn: () => getDepartmentAbsentees(department, date),
-        staleTime: 30 * 1000,
+        staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
     });
 
     if (statsLoading) {

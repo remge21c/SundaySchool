@@ -349,19 +349,18 @@ export async function getAllAttendanceStatsByWeek(
   const { getAllClasses } = await import('./classes');
   const classes = await getAllClasses();
 
-  const results: WeeklyAttendanceStatsByClass[] = [];
-
-  // 각 반별로 주간 통계 계산
-  for (const classItem of classes) {
+  // 병렬로 모든 반의 통계 조회 (성능 개선)
+  const statsPromises = classes.map(async (classItem) => {
     const stats = await getClassAttendanceStatsByWeek(classItem.id, startDate, endDate);
-    results.push({
+    return {
       classId: classItem.id,
       className: classItem.name,
       department: classItem.department,
       stats,
-    });
-  }
+    };
+  });
 
+  const results = await Promise.all(statsPromises);
   return results;
 }
 

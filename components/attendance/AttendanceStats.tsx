@@ -21,7 +21,7 @@ export function AttendanceStats({ classId, date, className }: AttendanceStatsPro
   const { data: stats, isLoading, error } = useQuery({
     queryKey: ['attendance-stats', classId, date],
     queryFn: () => getAttendanceStats(classId, date),
-    staleTime: 30 * 1000, // 30초간 fresh 상태 유지
+    staleTime: 5 * 60 * 1000, // 5분간 캐시 유지
   });
 
   if (isLoading) {
@@ -120,8 +120,8 @@ export function AttendanceStats({ classId, date, className }: AttendanceStatsPro
                 stats.attendanceRate >= 80
                   ? 'bg-green-500'
                   : stats.attendanceRate >= 60
-                  ? 'bg-amber-500'
-                  : 'bg-red-500'
+                    ? 'bg-amber-500'
+                    : 'bg-red-500'
               )}
               style={{ width: `${stats.attendanceRate}%` }}
             />
