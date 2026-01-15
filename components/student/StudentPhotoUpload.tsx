@@ -18,6 +18,95 @@ interface StudentPhotoUploadProps {
   studentName: string;
 }
 
+// 최대 파일 크기 (5MB)
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+// 압축 후 목표 크기 (1MB) - 프로필 이미지에 적합
+const TARGET_FILE_SIZE = 1 * 1024 * 1024;
+// 최대 이미지 크기 (픽셀) - 프로필 이미지용
+const MAX_IMAGE_DIMENSION = 800;
+
+/**
+ * 이미지 압축 함수
+ * Canvas API를 사용하여 이미지 크기와 품질을 조절
+ */
+async function compressImage(file: File): Promise<File> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    if (!ctx) {
+      reject(new Error('Canvas context를 생성할 수 없습니다.'));
+      return;
+    }
+
+    img.onload = () => {
+      let { width, height } = img;
+
+      // 이미지 크기 조절 (최대 크기 제한)
+      if (width > MAX_IMAGE_DIMENSION || height > MAX_IMAGE_DIMENSION) {
+        if (width > height) {
+          height = (height / width) * MAX_IMAGE_DIMENSION;
+          width = MAX_IMAGE_DIMENSION;
+        } else {
+          width = (width / height) * MAX_IMAGE_DIMENSION;
+          height = MAX_IMAGE_DIMENSION;
+        }
+      }
+
+      canvas.width = width;
+      canvas.height = height;
+
+      // 이미지 그리기
+      ctx.drawImage(img, 0, 0, width, height);
+
+      // 품질을 낮추면서 목표 크기 이하가 될 때까지 압축
+      let quality = 0.8;
+      const compress = () => {
+        canvas.toBlob(
+          (blob) => {
+            if (!blob) {
+              reject(new Error('이미지 압축에 실패했습니다.'));
+              return;
+            }
+
+            // 목표 크기 이하이거나 품질이 너무 낮으면 완료
+            if (blob.size <= TARGET_FILE_SIZE || quality <= 0.3) {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            } else {
+              // 품질을 낮추고 다시 시도
+              quality -= 0.1;
+              compress();
+            }
+          },
+          'image/jpeg',
+          quality
+        );
+      };
+
+      compress();
+    };
+
+    img.onerror = () => {
+      reject(new Error('이미지를 로드할 수 없습니다.'));
+    };
+
+    // 파일을 Data URL로 읽기
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      img.src = e.target?.result as string;
+    };
+    reader.onerror = () => {
+      reject(new Error('파일을 읽을 수 없습니다.'));
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 export function StudentPhotoUpload({
   studentId,
   currentPhotoUrl,
@@ -27,6 +116,7 @@ export function StudentPhotoUpload({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(currentPhotoUrl);
   const [isUploading, setIsUploading] = useState(false);
+  const [compressionMessage, setCompressionMessage] = useState<string | null>(null);
 
   // 사진 업로드 mutation
   const uploadMutation = useMutation({
@@ -45,10 +135,10 @@ export function StudentPhotoUpload({
 
         // 새 사진 업로드
         const photoUrl = await uploadStudentPhoto(studentId, file);
-        
+
         // 학생 정보 업데이트
         await updateStudentPhoto(studentId, photoUrl);
-        
+
         return photoUrl;
       } finally {
         setIsUploading(false);
@@ -71,10 +161,10 @@ export function StudentPhotoUpload({
   const deleteMutation = useMutation({
     mutationFn: async () => {
       if (!currentPhotoUrl) return;
-      
+
       // Storage에서 삭제
       await deleteStudentPhoto(currentPhotoUrl);
-      
+
       // 학생 정보에서 photo_url 제거
       await updateStudentPhoto(studentId, null);
     },
@@ -89,7 +179,7 @@ export function StudentPhotoUpload({
     },
   });
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -99,10 +189,27 @@ export function StudentPhotoUpload({
       return;
     }
 
-    // 파일 크기 확인 (5MB 제한)
-    if (file.size > 5 * 1024 * 1024) {
-      alert('파일 크기는 5MB 이하여야 합니다.');
-      return;
+    let fileToUpload = file;
+
+    // 파일 크기가 5MB 이상이면 자동 압축
+    if (file.size > MAX_FILE_SIZE) {
+      try {
+        setCompressionMessage(`이미지 압축 중... (${(file.size / 1024 / 1024).toFixed(1)}MB → 압축 중)`);
+        setIsUploading(true);
+
+        fileToUpload = await compressImage(file);
+
+        setCompressionMessage(`압축 완료! (${(file.size / 1024 / 1024).toFixed(1)}MB → ${(fileToUpload.size / 1024 / 1024).toFixed(1)}MB)`);
+
+        // 3초 후 메시지 숨기기
+        setTimeout(() => setCompressionMessage(null), 3000);
+      } catch (error) {
+        console.error('이미지 압축 실패:', error);
+        alert('이미지 압축에 실패했습니다. 더 작은 이미지를 사용해주세요.');
+        setIsUploading(false);
+        setCompressionMessage(null);
+        return;
+      }
     }
 
     // 미리보기
@@ -110,10 +217,10 @@ export function StudentPhotoUpload({
     reader.onloadend = () => {
       setPreviewUrl(reader.result as string);
     };
-    reader.readAsDataURL(file);
+    reader.readAsDataURL(fileToUpload);
 
     // 업로드
-    uploadMutation.mutate(file);
+    uploadMutation.mutate(fileToUpload);
   };
 
   const handleDelete = () => {
@@ -183,9 +290,15 @@ export function StudentPhotoUpload({
       />
 
       {/* 안내 메시지 */}
-      <p className="text-xs text-gray-500 text-center">
-        이미지 파일만 업로드 가능합니다 (최대 5MB)
-      </p>
+      {compressionMessage ? (
+        <p className="text-xs text-blue-600 text-center font-medium">
+          {compressionMessage}
+        </p>
+      ) : (
+        <p className="text-xs text-gray-500 text-center">
+          이미지 파일만 업로드 가능합니다 (5MB 초과 시 자동 압축)
+        </p>
+      )}
     </div>
   );
 }

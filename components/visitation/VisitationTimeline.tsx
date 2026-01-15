@@ -226,6 +226,11 @@ export function VisitationTimeline({ studentId, classInfo }: VisitationTimelineP
                           )}
                         </div>
                         <div className="text-sm text-gray-600">{typeInfo.label}</div>
+                        <div className="text-xs text-gray-500">
+                          작성: {visitation.teacher_id === user?.id
+                            ? '나'
+                            : (visitation as any).profiles?.full_name || '알 수 없음'}
+                        </div>
                       </div>
                     </div>
 
@@ -326,9 +331,9 @@ export function VisitationTimeline({ studentId, classInfo }: VisitationTimelineP
                       className={cn(
                         'h-auto py-3 flex flex-col items-center gap-2',
                         isSelected &&
-                          (visitationType.value === 'call'
-                            ? 'bg-blue-600 hover:bg-blue-700'
-                            : visitationType.value === 'visit'
+                        (visitationType.value === 'call'
+                          ? 'bg-blue-600 hover:bg-blue-700'
+                          : visitationType.value === 'visit'
                             ? 'bg-green-600 hover:bg-green-700'
                             : 'bg-yellow-600 hover:bg-yellow-700')
                       )}

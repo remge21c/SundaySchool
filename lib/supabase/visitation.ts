@@ -60,7 +60,13 @@ export async function getVisitationLogs(
   params: GetVisitationLogsParams = {}
 ): Promise<VisitationLog[]> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let query = (supabase.from('visitation_logs') as any).select('*');
+  let query = (supabase.from('visitation_logs') as any).select(`
+    *,
+    profiles:teacher_id (
+      full_name,
+      email
+    )
+  `);
 
   if (params.student_id) {
     query = query.eq('student_id', params.student_id);

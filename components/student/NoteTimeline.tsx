@@ -141,7 +141,7 @@ export function NoteTimeline({ studentId, classInfo }: NoteTimelineProps) {
           <div className="space-y-4">
             {notes.map((note) => {
               const canEdit = user && (user.id === note.teacher_id || user.email?.includes('admin'));
-              
+
               return (
                 <div
                   key={note.id}
@@ -162,7 +162,7 @@ export function NoteTimeline({ studentId, classInfo }: NoteTimelineProps) {
                         <span>
                           {note.teacher_id === user?.id
                             ? '나'
-                            : note.profiles?.full_name || note.profiles?.email || '알 수 없음'}
+                            : note.profiles?.full_name || '알 수 없음'}
                         </span>
                       </div>
                       <p className="text-base whitespace-pre-wrap">{note.content}</p>
