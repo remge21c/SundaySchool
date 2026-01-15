@@ -364,3 +364,139 @@ export async function getAllAttendanceStatsByWeek(
 
   return results;
 }
+
+/**
+ * 부서별 출석 통계 조회
+ * @param department 부서명
+ * @param date 날짜 (YYYY-MM-DD)
+ * @returns 출석 통계 객체
+ */
+export async function getDepartmentAttendanceStats(
+  department: string,
+  date: string
+): Promise<AttendanceStats> {
+  // 해당 부서의 반 목록 조회
+  const { getAllClasses } = await import('./classes');
+  const allClasses = await getAllClasses();
+  const deptClasses = allClasses.filter(c => c.department === department);
+
+  if (deptClasses.length === 0) {
+    return { total: 0, present: 0, absent: 0, late: 0, attendanceRate: 0 };
+  }
+
+  // 해당 부서의 모든 반 ID
+  const classIds = deptClasses.map(c => c.id);
+
+  // 전체 학생 수 조회 (부서 내 모든 반)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: students, error: studentsError } = await (supabase
+    .from('students')
+    .select('id', { count: 'exact' })
+    .in('class_id', classIds)
+    .eq('is_active', true) as any);
+
+  if (studentsError) {
+    throw studentsError;
+  }
+
+  const total = students?.length ?? 0;
+
+  // 출석 기록 조회 (부서 내 모든 반)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: logs, error: logsError } = await (supabase
+    .from('attendance_logs')
+    .select('status')
+    .in('class_id', classIds)
+    .eq('date', date) as any);
+
+  if (logsError) {
+    throw logsError;
+  }
+
+  const present =
+    logs?.filter((log: { status: string }) => log.status === 'present').length ?? 0;
+  const absent =
+    logs?.filter((log: { status: string }) => log.status === 'absent').length ?? 0;
+  const late = logs?.filter((log: { status: string }) => log.status === 'late').length ?? 0;
+
+  // 출석률 계산 (출석 + 지각 / 전체)
+  const attendanceRate = total > 0 ? ((present + late) / total) * 100 : 0;
+
+  return {
+    total,
+    present,
+    absent,
+    late,
+    attendanceRate: Math.round(attendanceRate * 10) / 10,
+  };
+}
+
+/**
+ * 부서별 결석자 목록 조회
+ * @param department 부서명
+ * @param date 날짜 (YYYY-MM-DD)
+ * @returns 결석자 상세 정보 배열
+ */
+export interface AbsenteeInfo {
+  studentId: string;
+  studentName: string;
+  className: string;
+  reason: string | null;
+}
+
+export async function getDepartmentAbsentees(
+  department: string,
+  date: string
+): Promise<AbsenteeInfo[]> {
+  // 해당 부서의 반 목록 조회
+  const { getAllClasses } = await import('./classes');
+  const allClasses = await getAllClasses();
+  const deptClasses = allClasses.filter(c => c.department === department);
+
+  if (deptClasses.length === 0) {
+    return [];
+  }
+
+  // 반 ID와 이름 매핑
+  const classMap: Record<string, string> = {};
+  deptClasses.forEach(c => {
+    classMap[c.id] = c.name;
+  });
+
+  const classIds = deptClasses.map(c => c.id);
+
+  // 결석 기록 조회 (학생 정보 포함)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data: logs, error: logsError } = await (supabase
+    .from('attendance_logs')
+    .select(`
+      id,
+      student_id,
+      class_id,
+      reason,
+      students!inner (
+        id,
+        name,
+        is_active
+      )
+    `)
+    .in('class_id', classIds)
+    .eq('date', date)
+    .eq('status', 'absent') as any);
+
+  if (logsError) {
+    throw logsError;
+  }
+
+  // 결석자 정보 변환
+  const absentees: AbsenteeInfo[] = (logs || [])
+    .filter((log: any) => log.students?.is_active)
+    .map((log: any) => ({
+      studentId: log.student_id,
+      studentName: log.students?.name || '(이름 없음)',
+      className: classMap[log.class_id] || '(반 정보 없음)',
+      reason: log.reason,
+    }));
+
+  return absentees;
+}

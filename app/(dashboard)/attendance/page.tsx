@@ -8,6 +8,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
+import { DepartmentAttendanceStats } from '@/components/attendance/DepartmentAttendanceStats';
 import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,7 @@ import { getCurrentWeekRange } from '@/lib/utils/date';
 
 export default function AttendancePage() {
   const { user, loading: authLoading } = useAuth();
-  
+
   // 이번주 일요일 날짜로 고정
   const selectedDate = useMemo(() => {
     const weekRange = getCurrentWeekRange();
@@ -30,11 +31,13 @@ export default function AttendancePage() {
 
   // 선택된 반 ID
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
+  // 선택된 부서
+  const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
   const [isAutoSelected, setIsAutoSelected] = useState(false); // 자동 선택 여부 추적
 
   // 교사의 담당 반 조회
   const { data: teacherClasses } = useClassesByTeacher(user?.id, undefined);
-  
+
   // 선택된 반 정보 조회
   const { data: selectedClass } = useClass(selectedClassId);
 
@@ -60,6 +63,18 @@ export default function AttendancePage() {
     locale: ko,
   });
 
+  // 반 선택 핸들러
+  const handleSelectClass = (classId: string) => {
+    setSelectedClassId(classId);
+    setSelectedDepartment(null); // 반 선택 시 부서 선택 해제
+  };
+
+  // 부서 선택 핸들러
+  const handleSelectDepartment = (dept: string) => {
+    setSelectedDepartment(dept);
+    setSelectedClassId(null); // 부서 선택 시 반 선택 해제
+  };
+
   return (
     <>
       <PageHeader
@@ -72,8 +87,10 @@ export default function AttendancePage() {
         {/* 반 선택 사이드바 - 모바일에서는 상단 전체 폭, 데스크톱에서는 좌측 고정 폭 */}
         <div className="md:w-64 md:flex-shrink-0">
           <ClassSidebar
-            onSelect={setSelectedClassId}
+            onSelect={handleSelectClass}
             selectedClassId={selectedClassId || undefined}
+            onSelectDepartment={handleSelectDepartment}
+            selectedDepartment={selectedDepartment || undefined}
           />
         </div>
 
@@ -95,6 +112,11 @@ export default function AttendancePage() {
             </CardContent>
           </Card>
 
+          {/* 부서 선택 시: 부서 출석 통계 */}
+          {selectedDepartment && (
+            <DepartmentAttendanceStats department={selectedDepartment} date={selectedDate} />
+          )}
+
           {/* 선택된 반 정보 */}
           {selectedClass && (
             <Card>
@@ -109,17 +131,23 @@ export default function AttendancePage() {
             </Card>
           )}
 
-          {/* 출석 통계 */}
+          {/* 출석 통계 (반 선택 시) */}
           {selectedClassId && (
             <AttendanceStats classId={selectedClassId} date={selectedDate} />
           )}
 
-          {/* 학생 리스트 */}
+          {/* 학생 리스트 (반 선택 시) */}
           {selectedClassId ? (
             <div>
               <h2 className="text-xl font-semibold mb-4">학생 목록</h2>
               <StudentList classId={selectedClassId} date={selectedDate} />
             </div>
+          ) : selectedDepartment ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-gray-500">{selectedDepartment}의 개별 반을 선택하면 학생 목록이 표시됩니다</p>
+              </CardContent>
+            </Card>
           ) : (
             <Card>
               <CardContent className="py-12 text-center">
@@ -132,3 +160,4 @@ export default function AttendancePage() {
     </>
   );
 }
+
