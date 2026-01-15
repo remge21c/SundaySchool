@@ -124,13 +124,20 @@ export async function getClassesByTeacher(
     .select('class_id')
     .eq('teacher_id', teacherId));
 
+  // 디버깅 로그
+  console.log('[getClassesByTeacher] teacherId:', teacherId);
+  console.log('[getClassesByTeacher] mainTeacherClasses:', mainTeacherClasses?.length);
+  console.log('[getClassesByTeacher] classTeachersData:', classTeachersData);
+  console.log('[getClassesByTeacher] classTeachersError:', classTeachersError);
+
   // class_teachers 테이블이 아직 생성되지 않은 경우 (404 오류) 빈 배열로 처리
   if (classTeachersError) {
+    console.warn('[getClassesByTeacher] class_teachers 에러:', classTeachersError);
     // 404 오류 (테이블이 없음) 또는 테이블이 존재하지 않는 경우 빈 배열로 처리
-    if (classTeachersError.code === 'PGRST116' || 
-        classTeachersError.message?.includes('404') || 
-        classTeachersError.message?.includes('relation') || 
-        classTeachersError.message?.includes('does not exist')) {
+    if (classTeachersError.code === 'PGRST116' ||
+      classTeachersError.message?.includes('404') ||
+      classTeachersError.message?.includes('relation') ||
+      classTeachersError.message?.includes('does not exist')) {
       // 테이블이 아직 생성되지 않았으므로 빈 배열 반환
       return (mainTeacherClasses ?? []) as Class[];
     }
@@ -138,6 +145,7 @@ export async function getClassesByTeacher(
   }
 
   const classTeacherIds = (classTeachersData ?? []).map((row: any) => row.class_id);
+  console.log('[getClassesByTeacher] classTeacherIds:', classTeacherIds);
 
   // class_teachers로 배정된 반 조회
   let classTeacherClasses: Class[] = [];

@@ -67,15 +67,15 @@ describe('SignupForm', () => {
     // 따라서 이 테스트는 HTML5 검증이 실패하면 폼 제출이 되지 않음을 확인
     await userEvent.clear(emailInput);
     await userEvent.type(emailInput, 'invalid-email');
-    
+
     const passwordInput = screen.getByPlaceholderText(/비밀번호를 입력하세요/i);
     const confirmPasswordInput = screen.getByPlaceholderText(/비밀번호를 다시 입력하세요/i);
     const nameInput = screen.getByLabelText(/이름/i);
-    
+
     await userEvent.type(passwordInput, 'password123');
     await userEvent.type(confirmPasswordInput, 'password123');
     await userEvent.type(nameInput, '김교사');
-    
+
     const submitButton = screen.getByRole('button', { name: /회원가입/i });
     await userEvent.click(submitButton);
 
@@ -92,12 +92,12 @@ describe('SignupForm', () => {
     const passwordInput = screen.getByPlaceholderText(/비밀번호를 입력하세요/i);
     const confirmPasswordInput = screen.getByPlaceholderText(/비밀번호를 다시 입력하세요/i);
     const nameInput = screen.getByLabelText(/이름/i);
-    
+
     await userEvent.type(emailInput, 'teacher@example.com');
-    await userEvent.type(passwordInput, '12345'); // 5자 (6자 미만)
-    await userEvent.type(confirmPasswordInput, '12345');
+    await userEvent.type(passwordInput, '123'); // 3자 (4자 미만)
+    await userEvent.type(confirmPasswordInput, '123');
     await userEvent.type(nameInput, '김교사');
-    
+
     const submitButton = screen.getByRole('button', { name: /회원가입/i });
     await userEvent.click(submitButton);
 
@@ -117,12 +117,12 @@ describe('SignupForm', () => {
     const passwordInput = screen.getByPlaceholderText(/비밀번호를 입력하세요/i);
     const confirmPasswordInput = screen.getByPlaceholderText(/비밀번호를 다시 입력하세요/i);
     const nameInput = screen.getByLabelText(/이름/i);
-    
+
     await userEvent.type(emailInput, 'teacher@example.com');
     await userEvent.type(passwordInput, 'password123');
     await userEvent.type(confirmPasswordInput, 'password456'); // 다른 비밀번호
     await userEvent.type(nameInput, '김교사');
-    
+
     const submitButton = screen.getByRole('button', { name: /회원가입/i });
     await userEvent.click(submitButton);
 
@@ -153,12 +153,12 @@ describe('SignupForm', () => {
     const passwordInput = screen.getByPlaceholderText(/비밀번호를 입력하세요/i);
     const confirmPasswordInput = screen.getByPlaceholderText(/비밀번호를 다시 입력하세요/i);
     const nameInput = screen.getByLabelText(/이름/i);
-    
+
     await userEvent.type(emailInput, 'teacher@example.com');
     await userEvent.type(passwordInput, 'password123');
     await userEvent.type(confirmPasswordInput, 'password123');
     await userEvent.type(nameInput, '김교사');
-    
+
     const submitButton = screen.getByRole('button', { name: /회원가입/i });
     await userEvent.click(submitButton);
 
@@ -177,12 +177,12 @@ describe('SignupForm', () => {
     const passwordInput = screen.getByPlaceholderText(/비밀번호를 입력하세요/i);
     const confirmPasswordInput = screen.getByPlaceholderText(/비밀번호를 다시 입력하세요/i);
     const nameInput = screen.getByLabelText(/이름/i);
-    
+
     await userEvent.type(emailInput, 'teacher@example.com');
     await userEvent.type(passwordInput, 'password123');
     await userEvent.type(confirmPasswordInput, 'password123');
     await userEvent.type(nameInput, '김교사');
-    
+
     const submitButton = screen.getByRole('button', { name: /회원가입/i });
     await userEvent.click(submitButton);
 

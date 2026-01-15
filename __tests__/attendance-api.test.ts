@@ -221,7 +221,7 @@ describe('Attendance API', () => {
       mockSelect.mockReturnValue({
         eq: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
+            maybeSingle: vi.fn().mockResolvedValue({
               data: mockLog,
               error: null,
             }),
@@ -241,12 +241,9 @@ describe('Attendance API', () => {
       mockSelect.mockReturnValue({
         eq: vi.fn().mockReturnValue({
           eq: vi.fn().mockReturnValue({
-            single: vi.fn().mockResolvedValue({
+            maybeSingle: vi.fn().mockResolvedValue({
               data: null,
-              error: {
-                code: 'PGRST116',
-                message: 'The result contains 0 rows',
-              },
+              error: null,
             }),
           }),
         }),

@@ -8,6 +8,10 @@ import * as studentsApi from '@/lib/supabase/students';
 vi.mock('@/lib/supabase/client', () => ({
   supabase: {
     from: vi.fn(),
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    },
   },
 }));
 

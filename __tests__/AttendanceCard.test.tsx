@@ -186,7 +186,7 @@ describe('AttendanceCard', () => {
     });
   });
 
-  it('should toggle from late to absent on click when already late', async () => {
+  it('should open absence reason modal when toggling to absent', async () => {
     const user = userEvent.setup();
     const today = new Date().toISOString().split('T')[0];
     const mockAttendance: AttendanceLog = {
@@ -212,8 +212,9 @@ describe('AttendanceCard', () => {
     const card = screen.getByRole('button');
     await user.click(card);
 
+    // 결석으로 전환 시 결석 사유 모달이 열려야 함
     await waitFor(() => {
-      expect(mockMutate).toHaveBeenCalledWith({ status: 'absent', reason: undefined });
+      expect(screen.getByText('결석 사유 선택')).toBeInTheDocument();
     });
   });
 

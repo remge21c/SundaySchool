@@ -17,6 +17,10 @@ vi.mock('@/lib/supabase/visitation', async () => {
 vi.mock('@/lib/supabase/client', () => ({
   supabase: {
     from: vi.fn(),
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn(() => ({ data: { subscription: { unsubscribe: vi.fn() } } })),
+    },
   },
 }));
 
@@ -158,7 +162,7 @@ describe('VisitationTimeline', () => {
 
   it('should show loading state when data is loading', () => {
     vi.mocked(visitationApi.getVisitationLogs).mockImplementation(
-      () => new Promise(() => {}) // 무한 대기로 로딩 상태 유지
+      () => new Promise(() => { }) // 무한 대기로 로딩 상태 유지
     );
 
     renderWithQuery(<VisitationTimeline studentId="student-123" />);
