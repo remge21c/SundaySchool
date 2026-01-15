@@ -103,25 +103,29 @@ CREATE INDEX IF NOT EXISTS idx_classes_year_active
   WHERE is_active = true;
 
 -- ============================================
--- 8. RLS 정책
+-- 8. RLS 정책 (DROP IF EXISTS 추가)
 -- ============================================
 
 -- class_assignments RLS
 ALTER TABLE class_assignments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "class_assignments_select_all" ON class_assignments;
 CREATE POLICY "class_assignments_select_all" ON class_assignments
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "class_assignments_insert_admin" ON class_assignments;
 CREATE POLICY "class_assignments_insert_admin" ON class_assignments
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "class_assignments_update_admin" ON class_assignments;
 CREATE POLICY "class_assignments_update_admin" ON class_assignments
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "class_assignments_delete_admin" ON class_assignments;
 CREATE POLICY "class_assignments_delete_admin" ON class_assignments
   FOR DELETE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
@@ -130,9 +134,11 @@ CREATE POLICY "class_assignments_delete_admin" ON class_assignments
 -- student_grade_history RLS
 ALTER TABLE student_grade_history ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "student_grade_history_select_all" ON student_grade_history;
 CREATE POLICY "student_grade_history_select_all" ON student_grade_history
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "student_grade_history_insert_admin" ON student_grade_history;
 CREATE POLICY "student_grade_history_insert_admin" ON student_grade_history
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
@@ -141,19 +147,23 @@ CREATE POLICY "student_grade_history_insert_admin" ON student_grade_history
 -- temp_class_assignments RLS
 ALTER TABLE temp_class_assignments ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "temp_class_assignments_select_all" ON temp_class_assignments;
 CREATE POLICY "temp_class_assignments_select_all" ON temp_class_assignments
   FOR SELECT USING (true);
 
+DROP POLICY IF EXISTS "temp_class_assignments_insert_admin" ON temp_class_assignments;
 CREATE POLICY "temp_class_assignments_insert_admin" ON temp_class_assignments
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "temp_class_assignments_update_admin" ON temp_class_assignments;
 CREATE POLICY "temp_class_assignments_update_admin" ON temp_class_assignments
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "temp_class_assignments_delete_admin" ON temp_class_assignments;
 CREATE POLICY "temp_class_assignments_delete_admin" ON temp_class_assignments
   FOR DELETE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
@@ -162,17 +172,21 @@ CREATE POLICY "temp_class_assignments_delete_admin" ON temp_class_assignments
 -- year_transition_log RLS
 ALTER TABLE year_transition_log ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "year_transition_log_select_admin" ON year_transition_log;
 CREATE POLICY "year_transition_log_select_admin" ON year_transition_log
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "year_transition_log_insert_admin" ON year_transition_log;
 CREATE POLICY "year_transition_log_insert_admin" ON year_transition_log
   FOR INSERT WITH CHECK (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
+DROP POLICY IF EXISTS "year_transition_log_update_admin" ON year_transition_log;
 CREATE POLICY "year_transition_log_update_admin" ON year_transition_log
   FOR UPDATE USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
+
