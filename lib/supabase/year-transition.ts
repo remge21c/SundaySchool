@@ -24,7 +24,22 @@ export interface StudentWithClass {
     name: string;
     grade: number;
     class_id: string;
-    className?: string;
+    className?: string; // 현재 반 이름
+    department?: string; // 현재 부서
+}
+
+export interface BatchAssignment {
+    studentIds: string[];
+    classId: string;
+    year: number;
+    assignedBy?: string;
+}
+
+export interface Class {
+    id: string;
+    name: string;
+    department?: string;
+    teacher_name?: string;
 }
 
 /**
@@ -221,7 +236,7 @@ export async function getUnassignedStudents(year: number): Promise<StudentWithCl
         name,
         grade,
         class_id,
-        classes (name)
+        classes (name, department)
       `)
             .eq('is_active', true) as any);
 
@@ -247,6 +262,7 @@ export async function getUnassignedStudents(year: number): Promise<StudentWithCl
                 grade: s.grade,
                 class_id: s.class_id,
                 className: s.classes?.name ?? '미정',
+                department: s.classes?.department ?? '미정',
             }));
 
         return unassigned;
@@ -259,8 +275,8 @@ export async function getUnassignedStudents(year: number): Promise<StudentWithCl
 /**
  * 다음 연도 반 목록 조회
  */
-export async function getNextYearClasses() {
-    const nextYear = new Date().getFullYear() + 1;
+export async function getNextYearClasses(year?: number) {
+    const nextYear = year || new Date().getFullYear() + 1;
 
     try {
         const { data, error } = await (supabase
@@ -412,5 +428,33 @@ export async function executeYearTransition(): Promise<{
             success: false,
             error: error.message || '전환 실행 중 오류가 발생했습니다.',
         };
+    }
+}
+
+/**
+ * 학생 일괄 배정
+ */
+export async function assignStudentsBatch(
+    assignment: BatchAssignment
+): Promise<{ success: boolean; error?: string; count?: number }> {
+    try {
+        const assignments = assignment.studentIds.map(studentId => ({
+            student_id: studentId,
+            class_id: assignment.classId,
+            year: assignment.year,
+            assigned_by: assignment.assignedBy,
+        }));
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const { error } = await (supabase.from('temp_class_assignments') as any).upsert(assignments);
+
+        if (error) {
+            throw error;
+        }
+
+        return { success: true, count: assignments.length };
+    } catch (error: any) {
+        console.error('Error batch assigning students:', error);
+        return { success: false, error: error.message };
     }
 }

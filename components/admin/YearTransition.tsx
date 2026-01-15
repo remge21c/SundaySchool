@@ -1,35 +1,24 @@
-/**
- * 학년도 전환 관리 컴포넌트
- * 관리자용 연도 전환 대시보드
- */
-
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import {
-    CheckCircle,
-    Circle,
-    Clock,
-    Loader2,
-    AlertTriangle,
-    ArrowRight,
-    Users,
-    School,
-    Calendar,
-    RefreshCw,
-} from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import {
-    Card,
-    CardContent,
-    CardDescription,
-    CardFooter,
-    CardHeader,
-    CardTitle,
-} from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
+    getYearTransitionStatus,
+    createNextYearClasses,
+    assignStudentToClass,
+    getUnassignedStudents,
+    getNextYearClasses,
+    executeYearTransition,
+    assignStudentsBatch,
+    type TransitionStatus,
+    type StudentWithClass,
+    type Class,
+} from '@/lib/supabase/year-transition';
+import { useAuth } from '@/hooks/useAuth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import {
     Table,
     TableBody,
@@ -37,118 +26,227 @@ import {
     TableHead,
     TableHeader,
     TableRow,
-} from '@/components/ui/table';
+} from "@/components/ui/table";
 import {
-    getYearTransitionStatus,
-    createNextYearClasses,
-    getUnassignedStudents,
-    executeYearTransition,
-    type TransitionStatus,
-    type StudentWithClass,
-} from '@/lib/supabase/year-transition';
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+    Loader2,
+    CheckCircle,
+    AlertTriangle,
+    Calendar,
+    RefreshCw,
+    Circle,
+    Users,
+    Filter
+} from 'lucide-react';
 
 export function YearTransition() {
+    const { user } = useAuth();
+    const [loading, setLoading] = useState(false);
     const [status, setStatus] = useState<TransitionStatus | null>(null);
     const [unassignedStudents, setUnassignedStudents] = useState<StudentWithClass[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [actionLoading, setActionLoading] = useState<string | null>(null);
+    const [nextYearClasses, setNextYearClasses] = useState<Class[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [isExecuting, setIsExecuting] = useState(false);
+    const [showExecuteDialog, setShowExecuteDialog] = useState(false);
 
-    const fetchData = useCallback(async () => {
+    // 필터링 및 선택 상태
+    const [selectedDepartment, setSelectedDepartment] = useState<string>('all');
+    const [selectedGrade, setSelectedGrade] = useState<string>('all');
+    const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
+    const [showBatchAssignDialog, setShowBatchAssignDialog] = useState(false);
+    const [batchAssignClassId, setBatchAssignClassId] = useState<string>('');
+    const [isBatchAssigning, setIsBatchAssigning] = useState(false);
+
+    const fetchData = async () => {
         try {
             setLoading(true);
             setError(null);
+            const statusData = await getYearTransitionStatus();
+            setStatus(statusData);
 
-            const transitionStatus = await getYearTransitionStatus();
-            setStatus(transitionStatus);
-
-            if (transitionStatus.classesCreated) {
-                const students = await getUnassignedStudents(transitionStatus.nextYear);
+            if (statusData) {
+                const students = await getUnassignedStudents(statusData.nextYear);
                 setUnassignedStudents(students);
+
+                if (statusData.classesCreated) {
+                    const classes = await getNextYearClasses(statusData.nextYear);
+                    setNextYearClasses(classes);
+                }
             }
         } catch (err: any) {
-            console.error('Error fetching transition status:', err);
-            setError('전환 상태를 불러오는 중 오류가 발생했습니다.');
+            console.error('Error fetching data:', err);
+            setError(err.message || '데이터를 불러오는 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
-    }, []);
+    };
 
     useEffect(() => {
         fetchData();
-    }, [fetchData]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // 필터링된 학생 목록
+    const filteredStudents = useMemo(() => {
+        return unassignedStudents.filter(student => {
+            const matchDepartment = selectedDepartment === 'all' || student.department === selectedDepartment;
+            const matchGrade = selectedGrade === 'all' || student.grade.toString() === selectedGrade;
+            return matchDepartment && matchGrade;
+        });
+    }, [unassignedStudents, selectedDepartment, selectedGrade]);
+
+    // 전체 선택/해제 핸들러
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSelectAll = (checked: any) => {
+        if (checked === true) {
+            setSelectedStudentIds(filteredStudents.map(s => s.id));
+        } else {
+            setSelectedStudentIds([]);
+        }
+    };
+
+    // 개별 선택 핸들러
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const handleSelectStudent = (studentId: string, checked: any) => {
+        if (checked === true) {
+            setSelectedStudentIds(prev => [...prev, studentId]);
+        } else {
+            setSelectedStudentIds(prev => prev.filter(id => id !== studentId));
+        }
+    };
+
+    // 부서 목록 추출
+    const departments = useMemo(() => {
+        const unique = new Set(unassignedStudents.map(s => s.department).filter(Boolean));
+        return Array.from(unique).sort();
+    }, [unassignedStudents]);
+
+    // 학년 목록 추출
+    const grades = useMemo(() => {
+        const unique = new Set(unassignedStudents.map(s => s.grade));
+        return Array.from(unique).sort((a, b) => a - b);
+    }, [unassignedStudents]);
 
     const handleCreateClasses = async () => {
-        setActionLoading('create');
-        setError(null);
-        setSuccessMessage(null);
-
+        if (!status) return;
         try {
+            setLoading(true);
+            setSuccessMessage(null);
             const result = await createNextYearClasses();
-
             if (result.success) {
-                setSuccessMessage(`${result.createdCount}개의 새 반이 생성되었습니다.`);
-                await fetchData();
+                setSuccessMessage(`${result.createdCount}개의 반이 생성되었습니다.`);
+                fetchData();
             } else {
-                setError(result.error || '반 생성 중 오류가 발생했습니다.');
+                setError(result.error || '반 생성 실패');
             }
         } catch (err: any) {
-            setError(err.message || '반 생성 중 오류가 발생했습니다.');
+            setError(err.message);
         } finally {
-            setActionLoading(null);
+            setLoading(false);
+        }
+    };
+
+    const handleAssignStudent = async (studentId: string, classId: string) => {
+        if (!status || !user) return;
+        try {
+            // Optimistic update
+            setUnassignedStudents(prev => prev.filter(s => s.id !== studentId));
+            setSelectedStudentIds(prev => prev.filter(id => id !== studentId));
+
+            const result = await assignStudentToClass(studentId, classId, status.nextYear, user.id);
+            if (!result.success) {
+                setError(result.error || '학생 배정 실패');
+                fetchData(); // 배정 실패 시 데이터 리로드
+            } else {
+                // 성공 시 상태 업데이트만 수행 (리로드 안함)
+                setStatus(prev => prev ? {
+                    ...prev,
+                    assignedStudents: prev.assignedStudents + 1,
+                    assignmentProgress: Math.round(((prev.assignedStudents + 1) / prev.totalStudents) * 100)
+                } : null);
+            }
+        } catch (err: any) {
+            setError(err.message);
+            fetchData();
+        }
+    };
+
+    const handleBatchAssign = async () => {
+        if (!status || !user || !batchAssignClassId || selectedStudentIds.length === 0) return;
+
+        try {
+            setIsBatchAssigning(true);
+            const result = await assignStudentsBatch({
+                studentIds: selectedStudentIds,
+                classId: batchAssignClassId,
+                year: status.nextYear,
+                assignedBy: user.id
+            });
+
+            if (result.success) {
+                setSuccessMessage(`${result.count}명의 학생이 일괄 배정되었습니다.`);
+                setShowBatchAssignDialog(false);
+                setSelectedStudentIds([]);
+                setBatchAssignClassId('');
+                fetchData();
+            } else {
+                setError(result.error || '일괄 배정 실패');
+            }
+        } catch (err: any) {
+            setError(err.message);
+        } finally {
+            setIsBatchAssigning(false);
         }
     };
 
     const handleExecuteTransition = async () => {
-        if (!confirm('정말로 학년도 전환을 실행하시겠습니까?\n\n이 작업은 되돌릴 수 없습니다.')) {
-            return;
-        }
-
-        setActionLoading('execute');
-        setError(null);
-        setSuccessMessage(null);
-
+        if (!status || !user) return;
         try {
-            const result = await executeYearTransition();
-
-            if (result.success && result.stats) {
-                setSuccessMessage(
-                    `전환 완료! 활성화된 반: ${result.stats.classesActivated}개, ` +
-                    `배정된 학생: ${result.stats.studentsAssigned}명, ` +
-                    `학년 상승: ${result.stats.gradesIncremented}명`
-                );
-                await fetchData();
+            setIsExecuting(true);
+            setSuccessMessage(null);
+            const result = await executeYearTransition(user.id);
+            if (result.success) {
+                setSuccessMessage('학년도 전환이 성공적으로 완료되었습니다!');
+                setShowExecuteDialog(false);
+                fetchData();
             } else {
-                setError(result.error || '전환 실행 중 오류가 발생했습니다.');
+                setError(result.error || '전환 실행 실패');
+                setShowExecuteDialog(false);
             }
         } catch (err: any) {
-            setError(err.message || '전환 실행 중 오류가 발생했습니다.');
+            setError(err.message);
+            setShowExecuteDialog(false);
         } finally {
-            setActionLoading(null);
+            setIsExecuting(false);
         }
     };
 
-    if (loading) {
+    if (loading && !status) {
         return (
-            <Card>
-                <CardContent className="flex items-center justify-center py-8">
-                    <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
-                    <span className="ml-2 text-gray-500">로딩 중...</span>
-                </CardContent>
-            </Card>
+            <div className="flex justify-center p-8">
+                <Loader2 className="h-8 w-8 animate-spin text-blue-500" />
+            </div>
         );
     }
 
-    if (!status) {
-        return (
-            <Card>
-                <CardContent className="py-8">
-                    <p className="text-center text-gray-500">상태를 불러올 수 없습니다.</p>
-                </CardContent>
-            </Card>
-        );
-    }
+    if (!status) return null;
 
     const steps = [
         {
@@ -245,133 +343,201 @@ export function YearTransition() {
                                     <Progress value={step.progress} className="mt-2 h-2" />
                                 )}
                             </div>
+                            {/* 단계별 액션 버튼 */}
+                            <div className="flex-shrink-0">
+                                {index === 0 && !step.completed && (
+                                    <Button size="sm" onClick={handleCreateClasses} disabled={loading}>
+                                        반 생성 실행
+                                    </Button>
+                                )}
+                                {index === 3 && step.completed === false && (
+                                    <Dialog open={showExecuteDialog} onOpenChange={setShowExecuteDialog}>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant={status.assignmentProgress < 100 ? "secondary" : "default"} disabled={status.assignmentProgress < 100}>
+                                                전환 실행
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>학년도 전환 실행</DialogTitle>
+                                                <DialogDescription>
+                                                    정말로 전환을 실행하시겠습니까? 이 작업은 되돌릴 수 없으며 다음 작업이 수행됩니다:
+                                                    <ul className="list-disc list-inside mt-2 space-y-1">
+                                                        <li>{status.currentYear}년도 반 비활성화</li>
+                                                        <li>{status.nextYear}년도 반 활성화</li>
+                                                        <li>학생 학년 일괄 상승 (+1)</li>
+                                                        <li>새 반 편성 적용</li>
+                                                    </ul>
+                                                </DialogDescription>
+                                            </DialogHeader>
+                                            <DialogFooter>
+                                                <Button variant="outline" onClick={() => setShowExecuteDialog(false)}>취소</Button>
+                                                <Button onClick={handleExecuteTransition} disabled={isExecuting}>
+                                                    {isExecuting ? '실행 중...' : '확인 및 실행'}
+                                                </Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+                                )}
+                            </div>
                         </div>
                     ))}
                 </CardContent>
-                <CardFooter className="gap-2 flex-wrap">
-                    {!status.classesCreated && (
-                        <Button
-                            onClick={handleCreateClasses}
-                            disabled={actionLoading === 'create'}
-                        >
-                            {actionLoading === 'create' ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <School className="h-4 w-4 mr-2" />
-                            )}
-                            {status.nextYear}년 반 생성
-                        </Button>
-                    )}
-
-                    {status.classesCreated && !status.executed && (
-                        <Button
-                            variant="default"
-                            onClick={handleExecuteTransition}
-                            disabled={actionLoading === 'execute' || unassignedStudents.length > 0}
-                        >
-                            {actionLoading === 'execute' ? (
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                            ) : (
-                                <ArrowRight className="h-4 w-4 mr-2" />
-                            )}
-                            전환 실행
-                        </Button>
-                    )}
-
-                    {status.executed && (
-                        <Badge className="bg-green-100 text-green-800">
-                            <CheckCircle className="h-3 w-3 mr-1" />
-                            전환 완료
-                        </Badge>
-                    )}
-                </CardFooter>
             </Card>
 
             {/* 미배정 학생 목록 */}
-            {status.classesCreated && unassignedStudents.length > 0 && (
-                <Card>
-                    <CardHeader>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                    <div>
                         <CardTitle className="text-lg flex items-center gap-2">
                             <Users className="h-5 w-5" />
                             미배정 학생 목록
-                            <Badge variant="destructive">{unassignedStudents.length}명</Badge>
+                            <Badge variant="secondary" className="ml-2">{unassignedStudents.length}명</Badge>
                         </CardTitle>
                         <CardDescription>
                             아래 학생들은 아직 {status.nextYear}년 반에 배정되지 않았습니다.
                         </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Alert className="mb-4">
-                            <AlertTriangle className="h-4 w-4" />
-                            <AlertDescription>
-                                모든 학생이 배정되어야 전환을 실행할 수 있습니다.
-                            </AlertDescription>
-                        </Alert>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>이름</TableHead>
-                                    <TableHead>학년</TableHead>
-                                    <TableHead>현재 반</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {unassignedStudents.slice(0, 10).map((student) => (
-                                    <TableRow key={student.id}>
-                                        <TableCell className="font-medium">{student.name}</TableCell>
-                                        <TableCell>{student.grade}학년</TableCell>
-                                        <TableCell>{student.className}</TableCell>
-                                    </TableRow>
-                                ))}
-                                {unassignedStudents.length > 10 && (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="text-center text-gray-500">
-                                            외 {unassignedStudents.length - 10}명...
-                                        </TableCell>
-                                    </TableRow>
-                                )}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
-            )}
+                    </div>
+                </CardHeader>
+                <CardContent>
+                    {/* 필터링 및 일괄 작업 툴바 */}
+                    <div className="flex flex-wrap items-center gap-4 mb-4 p-4 bg-gray-50 rounded-lg">
+                        <div className="flex items-center gap-2">
+                            <Filter className="h-4 w-4 text-gray-500" />
+                            <span className="text-sm font-medium">필터:</span>
+                        </div>
 
-            {/* 통계 카드 */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                            <School className="h-5 w-5 text-blue-500" />
-                            <div>
-                                <p className="text-2xl font-bold">{status.nextYearClassCount}</p>
-                                <p className="text-sm text-gray-500">{status.nextYear}년 반 개수</p>
-                            </div>
+                        <Select value={selectedDepartment} onValueChange={setSelectedDepartment}>
+                            <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="부서 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">전체 부서</SelectItem>
+                                {departments.map(dept => (
+                                    <SelectItem key={dept} value={dept || 'unknown'}>{dept || '미정'}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <Select value={selectedGrade} onValueChange={setSelectedGrade}>
+                            <SelectTrigger className="w-[120px]">
+                                <SelectValue placeholder="학년 선택" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">전체 학년</SelectItem>
+                                {grades.map(grade => (
+                                    <SelectItem key={grade} value={grade.toString()}>{grade}학년</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+
+                        <div className="flex-1" />
+
+                        <Dialog open={showBatchAssignDialog} onOpenChange={setShowBatchAssignDialog}>
+                            <DialogTrigger asChild>
+                                <Button disabled={selectedStudentIds.length === 0}>
+                                    일괄 배정 ({selectedStudentIds.length}명)
+                                </Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader>
+                                    <DialogTitle>학생 일괄 배정</DialogTitle>
+                                    <DialogDescription>
+                                        선택된 {selectedStudentIds.length}명의 학생을 다음 연도 반에 배정합니다.
+                                    </DialogDescription>
+                                </DialogHeader>
+                                <div className="py-4">
+                                    <label className="text-sm font-medium mb-2 block">배정할 반 선택</label>
+                                    <Select value={batchAssignClassId} onValueChange={setBatchAssignClassId}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="반을 선택하세요" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {nextYearClasses.map((cls) => (
+                                                <SelectItem key={cls.id} value={cls.id}>
+                                                    {cls.name} {cls.teacher_name ? `(${cls.teacher_name})` : ''}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                                <DialogFooter>
+                                    <Button variant="outline" onClick={() => setShowBatchAssignDialog(false)}>취소</Button>
+                                    <Button onClick={handleBatchAssign} disabled={!batchAssignClassId || isBatchAssigning}>
+                                        {isBatchAssigning ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                                        배정하기
+                                    </Button>
+                                </DialogFooter>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+
+                    {unassignedStudents.length === 0 ? (
+                        <div className="text-center py-8 text-green-600 bg-green-50 rounded-lg">
+                            <CheckCircle className="h-8 w-8 mx-auto mb-2" />
+                            <p className="font-medium">모든 학생이 배정되었습니다!</p>
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                            <Users className="h-5 w-5 text-green-500" />
-                            <div>
-                                <p className="text-2xl font-bold">{status.assignedStudents}</p>
-                                <p className="text-sm text-gray-500">배정 완료 학생</p>
-                            </div>
+                    ) : filteredStudents.length === 0 ? (
+                        <div className="text-center py-8 text-gray-500">
+                            필터 조건에 맞는 학생이 없습니다.
                         </div>
-                    </CardContent>
-                </Card>
-                <Card>
-                    <CardContent className="pt-6">
-                        <div className="flex items-center gap-2">
-                            <Clock className="h-5 w-5 text-orange-500" />
-                            <div>
-                                <p className="text-2xl font-bold">{unassignedStudents.length}</p>
-                                <p className="text-sm text-gray-500">미배정 학생</p>
-                            </div>
+                    ) : (
+                        <div className="rounded-md border">
+                            <Table>
+                                <TableHeader>
+                                    <TableRow>
+                                        <TableHead className="w-[50px]">
+                                            <Checkbox
+                                                checked={selectedStudentIds.length === filteredStudents.length && filteredStudents.length > 0}
+                                                onCheckedChange={handleSelectAll}
+                                            />
+                                        </TableHead>
+                                        <TableHead>이름</TableHead>
+                                        <TableHead>부서</TableHead>
+                                        <TableHead>학년</TableHead>
+                                        <TableHead>현재 반</TableHead>
+                                        <TableHead>배정할 반</TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {filteredStudents.map((student) => (
+                                        <TableRow key={student.id}>
+                                            <TableCell>
+                                                <Checkbox
+                                                    checked={selectedStudentIds.includes(student.id)}
+                                                    onCheckedChange={(checked) => handleSelectStudent(student.id, checked)}
+                                                />
+                                            </TableCell>
+                                            <TableCell className="font-medium">{student.name}</TableCell>
+                                            <TableCell>
+                                                <Badge variant="outline">{student.department || '미정'}</Badge>
+                                            </TableCell>
+                                            <TableCell>{student.grade}학년</TableCell>
+                                            <TableCell>{student.className}</TableCell>
+                                            <TableCell>
+                                                <Select
+                                                    onValueChange={(value) => handleAssignStudent(student.id, value)}
+                                                >
+                                                    <SelectTrigger className="w-[200px]">
+                                                        <SelectValue placeholder="반 선택" />
+                                                    </SelectTrigger>
+                                                    <SelectContent>
+                                                        {nextYearClasses.map((cls) => (
+                                                            <SelectItem key={cls.id} value={cls.id}>
+                                                                {cls.name} {cls.teacher_name ? `(${cls.teacher_name})` : ''}
+                                                            </SelectItem>
+                                                        ))}
+                                                    </SelectContent>
+                                                </Select>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
                         </div>
-                    </CardContent>
-                </Card>
-            </div>
+                    )}
+                </CardContent>
+            </Card>
         </div>
     );
 }
