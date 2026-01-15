@@ -100,30 +100,22 @@ export function StudentEditForm({
       return;
     }
 
-    if (!grade.trim() || isNaN(Number(grade)) || Number(grade) < 1 || Number(grade) > 12) {
-      setError('학년을 올바르게 입력해주세요. (1-12)');
-      return;
-    }
-
-    if (!parentContact.trim()) {
-      setError('보호자 연락처를 입력해주세요.');
+    if (!birthday) {
+      setError('생년월일을 입력해주세요.');
       return;
     }
 
     // 업데이트 데이터 준비
     const updateData: StudentUpdate = {
       name: name.trim(),
-      grade: Number(grade),
+      grade: Number(grade) || 0,
+      birthday: birthday,
       parent_contact: parentContact.trim(),
       updated_at: new Date().toISOString(),
     };
 
     // 선택 필드 추가
-    if (birthday.trim()) {
-      updateData.birthday = birthday.trim();
-    } else {
-      updateData.birthday = null;
-    }
+    /* birthday는 이제 필수이므로 위에서 처리됨 */
 
     if (gender) {
       updateData.gender = gender;
@@ -171,7 +163,7 @@ export function StudentEditForm({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 이름 */}
+            {/* Row 1: 이름 | 학생 전화번호 */}
             <div className="space-y-2">
               <label htmlFor="name" className="text-sm font-medium">
                 이름 <span className="text-red-500">*</span>
@@ -187,37 +179,33 @@ export function StudentEditForm({
               />
             </div>
 
-            {/* 학년 */}
             <div className="space-y-2">
-              <label htmlFor="grade" className="text-sm font-medium">
-                학년 <span className="text-red-500">*</span>
-              </label>
+              <label htmlFor="phone-number" className="text-sm font-medium">학생 전화번호</label>
               <Input
-                id="grade"
-                type="number"
-                min="1"
-                max="12"
-                value={grade}
-                onChange={(e) => setGrade(e.target.value)}
-                required
+                id="phone-number"
+                type="tel"
+                value={phoneNumber}
+                onChange={(e) => setPhoneNumber(e.target.value)}
                 disabled={mutation.isPending}
-                placeholder="학년 (1-12)"
+                placeholder="010-0000-0000"
               />
             </div>
 
-            {/* 생년월일 */}
+            {/* Row 2: 생년월일 | 성별 */}
             <div className="space-y-2">
-              <label htmlFor="birthday" className="text-sm font-medium">생년월일</label>
+              <label htmlFor="birthday" className="text-sm font-medium">
+                생년월일 <span className="text-red-500">*</span>
+              </label>
               <Input
                 id="birthday"
                 type="date"
                 value={birthday}
                 onChange={(e) => setBirthday(e.target.value)}
+                required
                 disabled={mutation.isPending}
               />
             </div>
 
-            {/* 성별 */}
             <div className="space-y-2">
               <label htmlFor="gender" className="text-sm font-medium">성별</label>
               <select
@@ -233,7 +221,7 @@ export function StudentEditForm({
               </select>
             </div>
 
-            {/* 학교명 */}
+            {/* Row 3: 학교명 | 학년 */}
             <div className="space-y-2">
               <label htmlFor="school-name" className="text-sm font-medium">학교명</label>
               <Input
@@ -246,23 +234,21 @@ export function StudentEditForm({
               />
             </div>
 
-            {/* 보호자 연락처 */}
             <div className="space-y-2">
-              <label htmlFor="parent-contact" className="text-sm font-medium">
-                보호자 연락처 <span className="text-red-500">*</span>
-              </label>
+              <label htmlFor="grade" className="text-sm font-medium">학년</label>
               <Input
-                id="parent-contact"
-                type="text"
-                value={parentContact}
-                onChange={(e) => setParentContact(e.target.value)}
-                required
+                id="grade"
+                type="number"
+                min="1"
+                max="12"
+                value={grade}
+                onChange={(e) => setGrade(e.target.value)}
                 disabled={mutation.isPending}
-                placeholder="010-1234-5678"
+                placeholder="학년 (선택)"
               />
             </div>
 
-            {/* 보호자 이름 */}
+            {/* Row 4: 보호자 이름 | 보호자 연락처 */}
             <div className="space-y-2">
               <label htmlFor="parent-name" className="text-sm font-medium">보호자 이름</label>
               <Input
@@ -275,16 +261,15 @@ export function StudentEditForm({
               />
             </div>
 
-            {/* 학생 전화번호 */}
             <div className="space-y-2">
-              <label htmlFor="phone-number" className="text-sm font-medium">학생 전화번호</label>
+              <label htmlFor="parent-contact" className="text-sm font-medium">보호자 연락처</label>
               <Input
-                id="phone-number"
-                type="tel"
-                value={phoneNumber}
-                onChange={(e) => setPhoneNumber(e.target.value)}
+                id="parent-contact"
+                type="text"
+                value={parentContact}
+                onChange={(e) => setParentContact(e.target.value)}
                 disabled={mutation.isPending}
-                placeholder="010-0000-0000"
+                placeholder="010-1234-5678"
               />
             </div>
           </div>
@@ -324,6 +309,6 @@ export function StudentEditForm({
           </DialogFooter>
         </form>
       </DialogContent>
-    </Dialog >
+    </Dialog>
   );
 }
