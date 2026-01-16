@@ -101,12 +101,13 @@ export function ClassTree({
   // 교사의 담당 반 조회 (교사용) - 항상 조회
   const { data: teacherClasses, isLoading: teacherClassesLoading, error: teacherClassesError } = useClassesByTeacher(user?.id, year);
 
-  // 관리자 확인 완료 전에는 교사 데이터를 먼저 표시 (더 빠름)
-  // 관리자인지 확인되면 그때 전체 데이터로 전환
+  // 관리자 확인이 완료될 때까지 기다림
+  // 관리자인 경우 모든 반을 표시, 그렇지 않으면 담당 반만 표시
   const classes = isAdminUser === true ? allClasses : teacherClasses;
 
-  // 로딩 상태: 교사 데이터가 준비되면 일단 표시 (관리자 확인은 백그라운드에서 계속)
-  const isLoading = teacherClassesLoading || (isAdminUser === true && allClassesLoading);
+  // 로딩 상태: 관리자 확인 중이거나, 데이터 로딩 중이면 로딩 표시
+  // isAdminUser가 null이면 아직 확인 중이므로 로딩 상태 유지
+  const isLoading = isAdminUser === null || teacherClassesLoading || (isAdminUser === true && allClassesLoading);
   const error = isAdminUser === true ? allClassesError : teacherClassesError;
 
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(
