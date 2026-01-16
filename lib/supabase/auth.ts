@@ -72,6 +72,9 @@ export async function signUp(
       // 프로필 업데이트 실패해도 사용자는 생성되었으므로 경고만
       console.warn('프로필 업데이트 실패:', profileError);
     }
+
+    // 3. 회원가입 후 즉시 로그아웃 (승인 전까지 로그인 차단)
+    await supabase.auth.signOut();
   }
 
   return { error: null };

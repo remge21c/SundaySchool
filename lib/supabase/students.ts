@@ -459,3 +459,66 @@ export async function getStudentProfile(studentId: string): Promise<Student | nu
 
   return data ? (data as Student) : null;
 }
+
+/**
+ * 이달의 생일자 조회 (반별)
+ * @param classId 반 ID
+ * @returns 이번 달 생일인 학생 배열
+ */
+export async function getBirthdayStudentsByClass(classId: string): Promise<Student[]> {
+  const currentMonth = new Date().getMonth() + 1; // 1-12
+
+  const { data, error } = await (supabase
+    .from('students')
+    .select('*')
+    .eq('class_id', classId)
+    .eq('is_active', true)
+    .is('graduation_year', null)
+    .not('birthday', 'is', null)
+    .order('birthday', { ascending: true }) as any);
+
+  if (error) {
+    throw error;
+  }
+
+  // 클라이언트에서 월 필터링 (PostgreSQL의 EXTRACT는 RPC 없이 사용 어려움)
+  return ((data ?? []) as Student[]).filter((student) => {
+    if (!student.birthday) return false;
+    const birthMonth = new Date(student.birthday).getMonth() + 1;
+    return birthMonth === currentMonth;
+  });
+}
+
+/**
+ * 이달의 생일자 조회 (부서별)
+ * @param departmentName 부서명
+ * @returns 이번 달 생일인 학생 배열
+ */
+export async function getBirthdayStudentsByDepartment(departmentName: string): Promise<Student[]> {
+  const currentMonth = new Date().getMonth() + 1; // 1-12
+
+  const { data, error } = await (supabase
+    .from('students')
+    .select('*, classes!inner(department, name)')
+    .eq('classes.department', departmentName)
+    .eq('is_active', true)
+    .is('graduation_year', null)
+    .not('birthday', 'is', null)
+    .order('birthday', { ascending: true }) as any);
+
+  if (error) {
+    throw error;
+  }
+
+  // 클라이언트에서 월 필터링 및 classes 정보 제거
+  return ((data ?? []) as any[])
+    .filter((item) => {
+      if (!item.birthday) return false;
+      const birthMonth = new Date(item.birthday).getMonth() + 1;
+      return birthMonth === currentMonth;
+    })
+    .map((item) => {
+      const { classes, ...student } = item;
+      return { ...student, class_name: classes?.name } as Student & { class_name?: string };
+    });
+}

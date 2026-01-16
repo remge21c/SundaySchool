@@ -38,19 +38,48 @@ export function SignupForm() {
   const [position, setPosition] = useState<TeacherPosition>('teacher');
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [signupComplete, setSignupComplete] = useState(false);
   const { signUp, isAuthenticated, loading } = useAuth();
   const router = useRouter();
 
   // 이미 인증된 경우 대시보드로 리다이렉트
+  // 단, 회원가입 진행 중이거나 완료 직후에는 리다이렉트하지 않음
   useEffect(() => {
-    if (isAuthenticated && !loading) {
+    if (isAuthenticated && !loading && !isSubmitting && !signupComplete) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, router, isSubmitting, signupComplete]);
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !isSubmitting && !signupComplete) {
     return null;
   }
+
+  /**
+   * Supabase 영문 에러 메시지를 한글로 변환
+   */
+  const translateError = (message: string): string => {
+    const errorMap: Record<string, string> = {
+      'User already registered': '이미 등록된 이메일입니다.',
+      'Invalid login credentials': '이메일 또는 비밀번호가 올바르지 않습니다.',
+      'Email not confirmed': '이메일 인증이 완료되지 않았습니다.',
+      'Password should be at least 6 characters': '비밀번호는 6자 이상이어야 합니다.',
+      'Unable to validate email address: invalid format': '올바른 이메일 형식이 아닙니다.',
+    };
+
+    // 정확히 일치하는 경우
+    if (errorMap[message]) {
+      return errorMap[message];
+    }
+
+    // 부분 일치 검사
+    for (const [key, value] of Object.entries(errorMap)) {
+      if (message.includes(key)) {
+        return value;
+      }
+    }
+
+    return message;
+  };
 
   /**
    * 이메일 형식 검증
@@ -97,19 +126,13 @@ export function SignupForm() {
       const error = await signUp(email, password, fullName.trim(), position);
 
       if (error) {
-        setError(error.message || '회원가입 중 오류가 발생했습니다.');
+        setError(translateError(error.message) || '회원가입 중 오류가 발생했습니다.');
       } else {
-        // 회원가입 성공 시 세션 확인
-        // 이메일 인증이 필요한 경우 세션이 없을 수 있음
-        if (isAuthenticated) {
-          // 자동 로그인된 경우 대시보드로 리다이렉트
-          router.push('/dashboard');
-        } else {
-          // 이메일 인증이 필요한 경우 안내 메시지 표시
-          setError(null);
-          alert('회원가입이 완료되었습니다!\n\n이메일 인증이 필요한 경우, 이메일을 확인해주세요.\n이메일 인증 후 로그인해주세요.');
-          router.push('/login');
-        }
+        // 회원가입 성공 - 승인 대기 안내
+        setSignupComplete(true); // 대시보드 리다이렉트 방지
+        setError(null);
+        alert('회원가입이 완료되었습니다!\n\n관리자 승인 후 로그인이 가능합니다.\n승인 완료까지 잠시 기다려 주세요.');
+        router.push('/login');
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : '회원가입 중 오류가 발생했습니다.');
@@ -156,7 +179,7 @@ export function SignupForm() {
               onChange={(e) => setPassword(e.target.value)}
               required
               disabled={isSubmitting}
-              autoComplete="new-password"
+              autoComplete="off"
               minLength={4}
             />
           </div>
@@ -173,7 +196,7 @@ export function SignupForm() {
               onChange={(e) => setConfirmPassword(e.target.value)}
               required
               disabled={isSubmitting}
-              autoComplete="new-password"
+              autoComplete="off"
               minLength={4}
             />
           </div>

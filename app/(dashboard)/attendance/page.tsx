@@ -9,10 +9,11 @@ import { useState, useEffect, useMemo } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { DepartmentAttendanceStats } from '@/components/attendance/DepartmentAttendanceStats';
+import { BirthdayCard } from '@/components/attendance/BirthdayCard';
 import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar } from 'lucide-react';
+import { Calendar, Loader2, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 import { useClass, useClassesByTeacher } from '@/hooks/useClasses';
@@ -22,6 +23,10 @@ import { getCurrentWeekRange } from '@/lib/utils/date';
 
 export default function AttendancePage() {
   const { user, loading: authLoading } = useAuth();
+
+  // -- Permission State --
+  const [userRole, setUserRole] = useState<'admin' | 'teacher' | 'parent' | null>(null);
+  const [permissionChecked, setPermissionChecked] = useState(false);
 
   // 이번주 일요일 날짜로 고정
   const selectedDate = useMemo(() => {
@@ -41,20 +46,30 @@ export default function AttendancePage() {
   // 선택된 반 정보 조회
   const { data: selectedClass } = useClass(selectedClassId);
 
-  // 교사가 로그인하고 담당 반이 있으면 자동 선택
+  // 권한 확인 및 교사 자동 반 선택
   useEffect(() => {
-    // 인증 로딩 중이거나 이미 자동 선택했으면 스킵
-    if (authLoading || isAutoSelected || !user) {
+    // 인증 로딩 중이면 스킵
+    if (authLoading || !user) {
       return;
     }
 
     // 사용자 역할 확인
     getUserRole().then((role) => {
-      // 관리자가 아니고, 교사이며, 담당 반이 있고, 아직 반이 선택되지 않았으면
-      if (role !== 'admin' && role === 'teacher' && teacherClasses && teacherClasses.length > 0 && !selectedClassId) {
-        // 첫 번째 담당 반을 자동 선택
-        setSelectedClassId(teacherClasses[0].id);
-        setIsAutoSelected(true);
+      setUserRole(role);
+
+      if (role === 'admin') {
+        // 관리자는 바로 통과
+        setPermissionChecked(true);
+      } else if (role === 'teacher') {
+        // 교사: 담당 반이 있으면 자동 선택
+        if (teacherClasses && teacherClasses.length > 0 && !selectedClassId && !isAutoSelected) {
+          setSelectedClassId(teacherClasses[0].id);
+          setIsAutoSelected(true);
+        }
+        setPermissionChecked(true);
+      } else {
+        // 기타 역할
+        setPermissionChecked(true);
       }
     });
   }, [user, authLoading, teacherClasses, selectedClassId, isAutoSelected]);
@@ -75,6 +90,9 @@ export default function AttendancePage() {
     setSelectedClassId(null); // 부서 선택 시 반 선택 해제
   };
 
+  // 반 배정이 없는 교사 확인
+  const hasNoClassAssignment = userRole === 'teacher' && (!teacherClasses || teacherClasses.length === 0);
+
   return (
     <>
       <PageHeader
@@ -82,81 +100,108 @@ export default function AttendancePage() {
         description="학생의 출석 상태를 터치로 빠르게 체크하세요"
       />
 
-      {/* 레이아웃: 모바일에서는 세로(Stack), 데스크톱에서는 가로(Flex) */}
-      <div className="flex flex-col gap-6 md:flex-row">
-        {/* 반 선택 사이드바 - 모바일에서는 상단 전체 폭, 데스크톱에서는 좌측 고정 폭 */}
-        <div className="md:w-64 md:flex-shrink-0">
-          <ClassSidebar
-            onSelect={handleSelectClass}
-            selectedClassId={selectedClassId || undefined}
-            onSelectDepartment={handleSelectDepartment}
-            selectedDepartment={selectedDepartment || undefined}
-          />
+      {/* 권한 확인 중 로딩 */}
+      {!permissionChecked ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">권한 확인 중...</span>
         </div>
+      ) : hasNoClassAssignment ? (
+        /* 반 배정 없는 교사에게 안내 메시지 */
+        <Card className="mt-6">
+          <CardContent className="py-12 text-center">
+            <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">반 배정이 필요합니다</h3>
+            <p className="text-gray-500">
+              출석 체크 기능을 사용하려면 관리자에게 반 배정을 요청해 주세요.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        /* 레이아웃: 모바일에서는 세로(Stack), 데스크톱에서는 가로(Flex) */
+        <div className="flex flex-col gap-6 md:flex-row">
+          {/* 반 선택 사이드바 - 모바일에서는 상단 전체 폭, 데스크톱에서는 좌측 고정 폭 */}
+          <div className="md:w-64 md:flex-shrink-0">
+            <ClassSidebar
+              onSelect={handleSelectClass}
+              selectedClassId={selectedClassId || undefined}
+              onSelectDepartment={handleSelectDepartment}
+              selectedDepartment={selectedDepartment || undefined}
+            />
+          </div>
 
-        {/* 메인 컨텐츠 - 모바일/데스크톱 공통으로 가변 폭 */}
-        <div className="flex-1 space-y-6">
-          {/* 날짜 정보 카드 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="h-5 w-5" />
-                출석 체크 날짜
-              </CardTitle>
-              <CardDescription>
-                출석 체크는 이번주 일요일 날짜로 기록됩니다
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <p className="text-lg font-semibold text-gray-900">{formattedDate}</p>
-            </CardContent>
-          </Card>
-
-          {/* 부서 선택 시: 부서 출석 통계 */}
-          {selectedDepartment && (
-            <DepartmentAttendanceStats department={selectedDepartment} date={selectedDate} />
-          )}
-
-          {/* 선택된 반 정보 */}
-          {selectedClass && (
+          {/* 메인 컨텐츠 - 모바일/데스크톱 공통으로 가변 폭 */}
+          <div className="flex-1 space-y-6">
+            {/* 날짜 정보 카드 */}
             <Card>
               <CardHeader>
-                <CardTitle>선택된 반</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  출석 체크 날짜
+                </CardTitle>
+                <CardDescription>
+                  출석 체크는 이번주 일요일 날짜로 기록됩니다
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-semibold">
-                  {selectedClass.department} - {selectedClass.name}
-                </p>
+                <p className="text-lg font-semibold text-gray-900">{formattedDate}</p>
               </CardContent>
             </Card>
-          )}
 
-          {/* 출석 통계 (반 선택 시) */}
-          {selectedClassId && (
-            <AttendanceStats classId={selectedClassId} date={selectedDate} />
-          )}
+            {/* 부서 선택 시: 부서 출석 통계 */}
+            {selectedDepartment && (
+              <DepartmentAttendanceStats department={selectedDepartment} date={selectedDate} />
+            )}
 
-          {/* 학생 리스트 (반 선택 시) */}
-          {selectedClassId ? (
-            <div>
-              <h2 className="text-xl font-semibold mb-4">학생 목록</h2>
-              <StudentList classId={selectedClassId} date={selectedDate} />
-            </div>
-          ) : selectedDepartment ? (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-gray-500">{selectedDepartment}의 개별 반을 선택하면 학생 목록이 표시됩니다</p>
-              </CardContent>
-            </Card>
-          ) : (
-            <Card>
-              <CardContent className="py-12 text-center">
-                <p className="text-gray-500">반을 선택해주세요</p>
-              </CardContent>
-            </Card>
-          )}
+            {/* 선택된 반 정보 */}
+            {selectedClass && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>선택된 반</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold">
+                    {selectedClass.department} - {selectedClass.name}
+                  </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* 출석 통계 (반 선택 시) */}
+            {selectedClassId && (
+              <AttendanceStats classId={selectedClassId} date={selectedDate} />
+            )}
+
+            {/* 이달의 생일자 (부서 선택 시: 부서 전체, 반 선택 시: 해당 반) */}
+            {selectedDepartment && (
+              <BirthdayCard departmentName={selectedDepartment} />
+            )}
+            {selectedClassId && !selectedDepartment && (
+              <BirthdayCard classId={selectedClassId} />
+            )}
+
+            {/* 학생 리스트 (반 선택 시) */}
+            {selectedClassId ? (
+              <div>
+                <h2 className="text-xl font-semibold mb-4">학생 목록</h2>
+                <StudentList classId={selectedClassId} date={selectedDate} />
+              </div>
+            ) : selectedDepartment ? (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-gray-500">{selectedDepartment}의 개별 반을 선택하면 학생 목록이 표시됩니다</p>
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardContent className="py-12 text-center">
+                  <p className="text-gray-500">반을 선택해주세요</p>
+                </CardContent>
+              </Card>
+            )}
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

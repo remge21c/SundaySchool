@@ -92,18 +92,22 @@ export function ClassTree({
   const { data: departments = [] } = useQuery({
     queryKey: ['departments'],
     queryFn: getAllDepartments,
+    staleTime: 10 * 60 * 1000, // 10분간 캐시 유지
   });
 
-  // 모든 반 조회 (관리자용)
+  // 모든 반 조회 (관리자용) - 항상 조회하되 관리자일 때만 사용
   const { data: allClasses, isLoading: allClassesLoading, error: allClassesError } = useAllClasses(year);
 
-  // 교사의 담당 반 조회 (교사용)
+  // 교사의 담당 반 조회 (교사용) - 항상 조회
   const { data: teacherClasses, isLoading: teacherClassesLoading, error: teacherClassesError } = useClassesByTeacher(user?.id, year);
 
-  // 관리자인지 여부에 따라 적절한 데이터 사용
+  // 관리자 확인 완료 전에는 교사 데이터를 먼저 표시 (더 빠름)
+  // 관리자인지 확인되면 그때 전체 데이터로 전환
   const classes = isAdminUser === true ? allClasses : teacherClasses;
-  const isLoading = isAdminUser === null || (isAdminUser ? allClassesLoading : teacherClassesLoading);
-  const error = isAdminUser ? allClassesError : teacherClassesError;
+
+  // 로딩 상태: 교사 데이터가 준비되면 일단 표시 (관리자 확인은 백그라운드에서 계속)
+  const isLoading = teacherClassesLoading || (isAdminUser === true && allClassesLoading);
+  const error = isAdminUser === true ? allClassesError : teacherClassesError;
 
   const [expandedDepartments, setExpandedDepartments] = useState<Set<string>>(
     new Set()

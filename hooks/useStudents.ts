@@ -191,3 +191,43 @@ export function usePromoteGrade() {
     },
   });
 }
+
+/**
+ * 반별 이달의 생일자 조회 훅
+ * @param classId 반 ID
+ */
+export function useBirthdayStudentsByClass(classId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['students', 'birthday', 'class', classId],
+    queryFn: async () => {
+      if (!classId) {
+        throw new Error('classId is required');
+      }
+      const { getBirthdayStudentsByClass } = await import('@/lib/supabase/students');
+      return getBirthdayStudentsByClass(classId);
+    },
+    enabled: !!classId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}
+
+/**
+ * 부서별 이달의 생일자 조회 훅
+ * @param departmentName 부서명
+ */
+export function useBirthdayStudentsByDepartment(departmentName: string | null | undefined) {
+  return useQuery({
+    queryKey: ['students', 'birthday', 'department', departmentName],
+    queryFn: async () => {
+      if (!departmentName) {
+        throw new Error('departmentName is required');
+      }
+      const { getBirthdayStudentsByDepartment } = await import('@/lib/supabase/students');
+      return getBirthdayStudentsByDepartment(departmentName);
+    },
+    enabled: !!departmentName,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+  });
+}

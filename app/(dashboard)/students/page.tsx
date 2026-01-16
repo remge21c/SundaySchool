@@ -33,6 +33,11 @@ export default function StudentsPage() {
   const router = useRouter();
   const { user, loading: authLoading } = useAuth();
 
+  // -- Permission State --
+  const [userRole, setUserRole] = useState<'admin' | 'teacher' | 'parent' | null>(null);
+  const [canAddStudent, setCanAddStudent] = useState(false);
+  const [permissionChecked, setPermissionChecked] = useState(false);
+
   // -- Filter State --
   const [selectedClassId, setSelectedClassId] = useState<string | null>(null);
   const [selectedDepartment, setSelectedDepartment] = useState<string | null>(null);
@@ -125,22 +130,55 @@ export default function StudentsPage() {
     setSelectedStudentIds(new Set());
   }, [selectedClassId, selectedDepartment, selectedGrade, searchQuery]);
 
-  // 교사 자동 반 선택 (Initial Load only)
+  // 권한 확인 및 교사 자동 반 선택
   useEffect(() => {
-    if (authLoading || isAutoSelected || !user) return;
+    if (authLoading || !user) return;
 
     getUserRole().then((role) => {
-      // 교사이고 담당 반이 있는데 아직 선택된 반/부서가 없으면 첫 번째 반 자동 선택
-      if (
-        role !== 'admin' &&
-        role === 'teacher' &&
-        teacherClasses &&
-        teacherClasses.length > 0 &&
-        !selectedClassId &&
-        !selectedDepartment
-      ) {
-        setSelectedClassId(teacherClasses[0].id);
-        setIsAutoSelected(true);
+      setUserRole(role);
+
+      if (role === 'admin') {
+        // 관리자는 항상 학생 추가 가능
+        setCanAddStudent(true);
+        setPermissionChecked(true);
+      } else if (role === 'teacher') {
+        // 교사는 반 배정이 있고 부서 권한이 있어야 학생 추가 가능
+        // 반 배정이 없으면 학생 추가 불가
+        if (teacherClasses && teacherClasses.length > 0) {
+          // 부서 권한 확인을 위해 프로필 조회 (RPC 사용)
+          import('@/lib/supabase/client').then(({ supabase }) => {
+            (supabase
+              .from('profiles') as any)
+              .select('permission_scope, department_permissions')
+              .eq('id', user.id)
+              .single()
+              .then(({ data: profile }: any) => {
+                if (profile) {
+                  // 부서 권한(department)이 있어야 학생 추가 가능
+                  // department_permissions에서 permission_scope가 'department'인 부서가 하나라도 있는지 확인
+                  const deptPerms = profile.department_permissions as Record<string, any> || {};
+                  const hasDepartmentScope = Object.values(deptPerms).some(
+                    (setting: any) => typeof setting === 'object' && setting?.permission_scope === 'department'
+                  );
+                  setCanAddStudent(hasDepartmentScope);
+                }
+                setPermissionChecked(true);
+              });
+          });
+
+          // 자동 반 선택
+          if (!isAutoSelected && !selectedClassId && !selectedDepartment) {
+            setSelectedClassId(teacherClasses[0].id);
+            setIsAutoSelected(true);
+          }
+        } else {
+          // 반 배정 없음 - 학생 추가 불가
+          setCanAddStudent(false);
+          setPermissionChecked(true);
+        }
+      } else {
+        // 기타 역할
+        setPermissionChecked(true);
       }
     });
   }, [user, authLoading, teacherClasses, selectedClassId, selectedDepartment, isAutoSelected]);
@@ -286,6 +324,9 @@ export default function StudentsPage() {
     });
   };
 
+  // 반 배정이 없는 교사 확인
+  const hasNoClassAssignment = userRole === 'teacher' && (!teacherClasses || teacherClasses.length === 0);
+
   return (
     <>
       <PageHeader
@@ -293,275 +334,296 @@ export default function StudentsPage() {
         description="학생 정보를 조회하고 관리하세요"
       />
 
-      <div className="flex flex-col gap-6 md:flex-row">
-        {/* 반 선택 사이드바 */}
-        <div className="md:w-64 md:flex-shrink-0">
-          <ClassSidebar
-            onSelect={handleClassSelect}
-            selectedClassId={selectedClassId || undefined}
-            onSelectDepartment={handleDepartmentSelect}
-            selectedDepartment={selectedDepartment || undefined}
-          />
+      {/* 권한 확인 중 로딩 */}
+      {!permissionChecked ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="ml-2 text-gray-600">권한 확인 중...</span>
         </div>
+      ) : hasNoClassAssignment ? (
+        /* 반 배정 없는 교사에게 안내 메시지 */
+        <Card className="mt-6">
+          <CardContent className="py-12 text-center">
+            <Users className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+            <h3 className="text-lg font-semibold text-gray-700 mb-2">반 배정이 필요합니다</h3>
+            <p className="text-gray-500">
+              학생 관리 기능을 사용하려면 관리자에게 반 배정을 요청해 주세요.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="flex flex-col gap-6 md:flex-row">
+          {/* 반 선택 사이드바 */}
+          <div className="md:w-64 md:flex-shrink-0">
+            <ClassSidebar
+              onSelect={handleClassSelect}
+              selectedClassId={selectedClassId || undefined}
+              onSelectDepartment={handleDepartmentSelect}
+              selectedDepartment={selectedDepartment || undefined}
+            />
+          </div>
 
-        {/* 메인 컨텐츠 */}
-        <div className="flex-1 space-y-6">
-          {/* 검색 */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Search className="h-5 w-5" />
-                검색
-              </CardTitle>
-              <CardDescription>
-                학생 이름으로 검색할 수 있습니다
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <Input
-                  type="text"
-                  placeholder="학생 이름 검색..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="flex-1"
-                />
-
-                {(selectedClass || selectedDepartment || searchQuery) && (
-                  <Button
-                    variant="outline"
-                    onClick={() => {
-                      setSelectedClassId(null);
-                      setSelectedDepartment(null);
-                      setSearchQuery('');
-                    }}
-                  >
-                    초기화
-                  </Button>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* 선택된 반/부서 정보 */}
-          {(selectedClass || selectedDepartment) && (
+          {/* 메인 컨텐츠 */}
+          <div className="flex-1 space-y-6">
+            {/* 검색 */}
             <Card>
               <CardHeader>
-                <CardTitle>{selectedClass ? '선택된 반' : '선택된 부서'}</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Search className="h-5 w-5" />
+                  검색
+                </CardTitle>
+                <CardDescription>
+                  학생 이름으로 검색할 수 있습니다
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <p className="text-lg font-semibold">
-                  {selectedClass
-                    ? `${selectedClass.department} - ${selectedClass.name}`
-                    : selectedDepartment}
-                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  <Input
+                    type="text"
+                    placeholder="학생 이름 검색..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="flex-1"
+                  />
+
+                  {(selectedClass || selectedDepartment || searchQuery) && (
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setSelectedClassId(null);
+                        setSelectedDepartment(null);
+                        setSearchQuery('');
+                      }}
+                    >
+                      초기화
+                    </Button>
+                  )}
+                </div>
               </CardContent>
             </Card>
-          )}
 
-          {/* 학생 목록 */}
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
-                  <CardTitle className="flex items-center gap-2">
-                    <Users className="h-5 w-5" />
-                    학생 목록
-                  </CardTitle>
-                  <CardDescription className="mt-1">
+            {/* 선택된 반/부서 정보 */}
+            {(selectedClass || selectedDepartment) && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>{selectedClass ? '선택된 반' : '선택된 부서'}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-lg font-semibold">
                     {selectedClass
-                      ? `${selectedClass.department} ${selectedClass.name} 학생 목록`
-                      : selectedDepartment
-                        ? `${selectedDepartment} 전체 학생 목록`
-                        : '전체 학생 목록'}
-                    {students && ` (${students.length}명)`}
-                  </CardDescription>
-                </div>
-                <div className="flex items-center gap-2 flex-wrap">
-                  {/* 정렬 버튼 */}
-                  <div className="flex items-center gap-1 border rounded-lg p-1 bg-gray-50">
-                    <Button
-                      variant={sortBy === 'name' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => {
-                        if (sortBy === 'name') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortBy('name');
-                          setSortOrder('asc');
-                        }
-                      }}
-                      className="h-8 px-3 text-xs"
-                    >
-                      이름
-                      {sortBy === 'name' && (
-                        <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
-                      )}
-                    </Button>
-                    <Button
-                      variant={sortBy === 'grade' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => {
-                        if (sortBy === 'grade') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortBy('grade');
-                          setSortOrder('asc');
-                        }
-                      }}
-                      className="h-8 px-3 text-xs"
-                    >
-                      학년
-                      {sortBy === 'grade' && (
-                        <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
-                      )}
-                    </Button>
-                    <Button
-                      variant={sortBy === 'birthday' ? 'default' : 'ghost'}
-                      size="sm"
-                      onClick={() => {
-                        if (sortBy === 'birthday') {
-                          setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
-                        } else {
-                          setSortBy('birthday');
-                          setSortOrder('asc');
-                        }
-                      }}
-                      className="h-8 px-3 text-xs"
-                    >
-                      생년월일
-                      {sortBy === 'birthday' && (
-                        <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
-                      )}
-                    </Button>
-                  </div>
-
-                  {students && students.length > 0 && (
-                    <div className="flex items-center px-2 py-1 bg-gray-50 rounded border text-sm">
-                      <Checkbox
-                        id="select-all"
-                        checked={selectedStudentIds.size === students.length && students.length > 0}
-                        onCheckedChange={handleSelectAll}
-                        className="mr-2"
-                      />
-                      <label htmlFor="select-all" className="cursor-pointer text-gray-600 font-medium">
-                        전체 선택
-                      </label>
-                    </div>
-                  )}
-                  <Button
-                    onClick={() => setIsAddFormOpen(true)}
-                    className="flex items-center gap-2"
-                  >
-                    <UserPlus className="h-4 w-4" />
-                    학생 추가
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              {isLoading ? (
-                <div className="flex items-center justify-center py-12">
-                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                  <span className="ml-2 text-gray-600">학생 목록을 불러오는 중...</span>
-                </div>
-              ) : !students || students.length === 0 ? (
-                <div className="py-12 text-center">
-                  <p className="text-gray-500">
-                    {searchQuery || selectedGrade !== 'all'
-                      ? '검색 결과가 없습니다.'
-                      : (selectedClass || selectedDepartment)
-                        ? '등록된 학생이 없습니다.'
-                        : '반을 선택하거나 검색어를 입력해주세요.'}
+                      ? `${selectedClass.department} - ${selectedClass.name}`
+                      : selectedDepartment}
                   </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {sortedStudents.map((student) => (
-                    <div key={student.id} className="relative group">
-                      {/* Checkbox Overlay */}
-                      <div className="absolute top-4 left-4 z-10" onClick={(e) => e.stopPropagation()}>
-                        <Checkbox
-                          checked={selectedStudentIds.has(student.id)}
-                          onCheckedChange={(checked) => handleSelectStudent(student.id, checked as boolean)}
-                          className="bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-gray-300 shadow-sm"
-                        />
-                      </div>
+                </CardContent>
+              </Card>
+            )}
 
-                      <Card
-                        className={`cursor-pointer transition-all border ${selectedStudentIds.has(student.id)
-                          ? 'border-primary ring-1 ring-primary bg-primary/5'
-                          : 'hover:shadow-md hover:border-gray-300'
-                          }`}
-                        onClick={() => handleStudentClick(student.id)}
+            {/* 학생 목록 */}
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle className="flex items-center gap-2">
+                      <Users className="h-5 w-5" />
+                      학생 목록
+                    </CardTitle>
+                    <CardDescription className="mt-1">
+                      {selectedClass
+                        ? `${selectedClass.department} ${selectedClass.name} 학생 목록`
+                        : selectedDepartment
+                          ? `${selectedDepartment} 전체 학생 목록`
+                          : '전체 학생 목록'}
+                      {students && ` (${students.length}명)`}
+                    </CardDescription>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* 정렬 버튼 */}
+                    <div className="flex items-center gap-1 border rounded-lg p-1 bg-gray-50">
+                      <Button
+                        variant={sortBy === 'name' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => {
+                          if (sortBy === 'name') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('name');
+                            setSortOrder('asc');
+                          }
+                        }}
+                        className="h-8 px-3 text-xs"
                       >
-                        <CardContent className="p-4 pl-12"> {/* Add padding left for checkbox space */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                {(student as any).photo_url ? (
-                                  <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
-                                    <img
-                                      src={(student as any).photo_url}
-                                      alt={student.name}
-                                      className="w-full h-full object-cover"
-                                    />
+                        이름
+                        {sortBy === 'name' && (
+                          <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
+                        )}
+                      </Button>
+                      <Button
+                        variant={sortBy === 'grade' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => {
+                          if (sortBy === 'grade') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('grade');
+                            setSortOrder('asc');
+                          }
+                        }}
+                        className="h-8 px-3 text-xs"
+                      >
+                        학년
+                        {sortBy === 'grade' && (
+                          <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
+                        )}
+                      </Button>
+                      <Button
+                        variant={sortBy === 'birthday' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => {
+                          if (sortBy === 'birthday') {
+                            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+                          } else {
+                            setSortBy('birthday');
+                            setSortOrder('asc');
+                          }
+                        }}
+                        className="h-8 px-3 text-xs"
+                      >
+                        생년월일
+                        {sortBy === 'birthday' && (
+                          <ArrowUpDown className={`ml-1 h-3 w-3 ${sortOrder === 'desc' ? 'rotate-180' : ''} transition-transform`} />
+                        )}
+                      </Button>
+                    </div>
+
+                    {students && students.length > 0 && (
+                      <div className="flex items-center px-2 py-1 bg-gray-50 rounded border text-sm">
+                        <Checkbox
+                          id="select-all"
+                          checked={selectedStudentIds.size === students.length && students.length > 0}
+                          onCheckedChange={handleSelectAll}
+                          className="mr-2"
+                        />
+                        <label htmlFor="select-all" className="cursor-pointer text-gray-600 font-medium">
+                          전체 선택
+                        </label>
+                      </div>
+                    )}
+                    {canAddStudent && selectedClassId && (
+                      <Button
+                        onClick={() => setIsAddFormOpen(true)}
+                        className="flex items-center gap-2"
+                      >
+                        <UserPlus className="h-4 w-4" />
+                        학생 추가
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {isLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                    <span className="ml-2 text-gray-600">학생 목록을 불러오는 중...</span>
+                  </div>
+                ) : !students || students.length === 0 ? (
+                  <div className="py-12 text-center">
+                    <p className="text-gray-500">
+                      {searchQuery || selectedGrade !== 'all'
+                        ? '검색 결과가 없습니다.'
+                        : (selectedClass || selectedDepartment)
+                          ? '등록된 학생이 없습니다.'
+                          : '반을 선택하거나 검색어를 입력해주세요.'}
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {sortedStudents.map((student) => (
+                      <div key={student.id} className="relative group">
+                        {/* Checkbox Overlay */}
+                        <div className="absolute top-4 left-4 z-10" onClick={(e) => e.stopPropagation()}>
+                          <Checkbox
+                            checked={selectedStudentIds.has(student.id)}
+                            onCheckedChange={(checked) => handleSelectStudent(student.id, checked as boolean)}
+                            className="bg-white data-[state=checked]:bg-primary data-[state=checked]:text-primary-foreground border-gray-300 shadow-sm"
+                          />
+                        </div>
+
+                        <Card
+                          className={`cursor-pointer transition-all border ${selectedStudentIds.has(student.id)
+                            ? 'border-primary ring-1 ring-primary bg-primary/5'
+                            : 'hover:shadow-md hover:border-gray-300'
+                            }`}
+                          onClick={() => handleStudentClick(student.id)}
+                        >
+                          <CardContent className="p-4 pl-12"> {/* Add padding left for checkbox space */}
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  {(student as any).photo_url ? (
+                                    <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-gray-200">
+                                      <img
+                                        src={(student as any).photo_url}
+                                        alt={student.name}
+                                        className="w-full h-full object-cover"
+                                      />
+                                    </div>
+                                  ) : (
+                                    <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
+                                      <span className="text-blue-600 font-semibold">
+                                        {student.name.charAt(0)}
+                                      </span>
+                                    </div>
+                                  )}
+                                  <div>
+                                    <div className="font-semibold text-base">{student.name}</div>
+                                    <div className="text-sm text-gray-600">
+                                      {student.grade}학년
+                                      {student.birthday && (
+                                        <span className="ml-2">
+                                          ({format(new Date(student.birthday), 'yyyy년 M월 d일', {
+                                            locale: ko,
+                                          })})
+                                        </span>
+                                      )}
+                                    </div>
                                   </div>
-                                ) : (
-                                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                                    <span className="text-blue-600 font-semibold">
-                                      {student.name.charAt(0)}
-                                    </span>
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-gray-500">
+                                  {student.parent_contact}
+                                </div>
+                                {student.school_name && (
+                                  <div className="text-xs text-gray-400 mt-1">
+                                    {student.school_name}
                                   </div>
                                 )}
-                                <div>
-                                  <div className="font-semibold text-base">{student.name}</div>
-                                  <div className="text-sm text-gray-600">
-                                    {student.grade}학년
-                                    {student.birthday && (
-                                      <span className="ml-2">
-                                        ({format(new Date(student.birthday), 'yyyy년 M월 d일', {
-                                          locale: ko,
-                                        })})
-                                      </span>
-                                    )}
-                                  </div>
+                              </div>
+                            </div>
+                            {student.allergies && typeof student.allergies === 'object' && (
+                              <div className="mt-2 pt-2 border-t border-gray-100">
+                                <div className="text-xs text-amber-600">
+                                  알레르기:{' '}
+                                  {Array.isArray(
+                                    (student.allergies as { food?: string[] }).food
+                                  )
+                                    ? (student.allergies as { food?: string[] }).food?.join(', ')
+                                    : '정보 없음'}
                                 </div>
                               </div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-gray-500">
-                                {student.parent_contact}
-                              </div>
-                              {student.school_name && (
-                                <div className="text-xs text-gray-400 mt-1">
-                                  {student.school_name}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                          {student.allergies && typeof student.allergies === 'object' && (
-                            <div className="mt-2 pt-2 border-t border-gray-100">
-                              <div className="text-xs text-amber-600">
-                                알레르기:{' '}
-                                {Array.isArray(
-                                  (student.allergies as { food?: string[] }).food
-                                )
-                                  ? (student.allergies as { food?: string[] }).food?.join(', ')
-                                  : '정보 없음'}
-                              </div>
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
+                            )}
+                          </CardContent>
+                        </Card>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Floating Bulk Action Bar */}
       <StudentBulkActions

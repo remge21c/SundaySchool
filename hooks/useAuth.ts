@@ -84,6 +84,7 @@ export function useAuth(): UseAuthReturn {
    * 이메일과 비밀번호로 로그인
    */
   const signIn = async (email: string, password: string) => {
+    // 1. Supabase 로그인 시도
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -93,9 +94,24 @@ export function useAuth(): UseAuthReturn {
       return error;
     }
 
-    // 세션과 사용자 정보를 즉시 업데이트
-    // onAuthStateChange가 발생하기 전에 상태를 업데이트하여 리다이렉트가 빠르게 작동하도록 함
     if (data.session) {
+      // 2. RPC 함수로 프로필 상태 확인 (RLS 우회)
+      const { data: status, error: statusError } = await supabase.rpc('get_my_status');
+
+      // 에러 발생 시 로그만 남기고 진행 (함수가 없거나 프로필이 없는 경우)
+      if (statusError) {
+        console.error('프로필 상태 확인 실패:', statusError);
+      } else if (status === 'pending') {
+        // 3. 승인 대기 중이면 즉시 로그아웃 및 에러 반환
+        await supabase.auth.signOut();
+        return new Error('승인 대기 중입니다. 관리자에게 문의하세요.');
+      } else if (status === 'rejected') {
+        // 4. 거절된 상태면 로그아웃
+        await supabase.auth.signOut();
+        return new Error('승인이 거절되었습니다. 관리자에게 문의하세요.');
+      }
+
+      // 5. 승인된 사용자면 세션 업데이트
       setSession(data.session);
       setUser(data.session.user);
     }

@@ -20,13 +20,14 @@ export function LoginForm() {
   const router = useRouter();
 
   // 이미 인증된 경우 대시보드로 리다이렉트
+  // 단, 로그인 제출 중에는 리다이렉트하지 않음 (승인 대기 사용자 처리를 위해)
   useEffect(() => {
-    if (isAuthenticated && !loading) {
+    if (isAuthenticated && !loading && !isSubmitting) {
       router.push('/dashboard');
     }
-  }, [isAuthenticated, loading, router]);
+  }, [isAuthenticated, loading, router, isSubmitting]);
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !isSubmitting) {
     return null;
   }
 
@@ -65,9 +66,14 @@ export function LoginForm() {
       if (error) {
         // Supabase 에러 메시지를 더 친화적으로 변환
         let errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
-        
+
         if (error.message) {
-          if (error.message.includes('Invalid login credentials')) {
+          if (error.message.includes('승인 대기')) {
+            // 승인 대기 중인 사용자 - 에러 메시지 표시하고 로그인 페이지에 머무름
+            errorMessage = '승인 대기 중입니다. 관리자에게 문의하세요.';
+          } else if (error.message.includes('승인이 거절')) {
+            errorMessage = '승인이 거절되었습니다. 관리자에게 문의하세요.';
+          } else if (error.message.includes('Invalid login credentials')) {
             errorMessage = '이메일 또는 비밀번호가 올바르지 않습니다.';
           } else if (error.message.includes('Email not confirmed')) {
             errorMessage = '이메일 인증이 완료되지 않았습니다. 이메일을 확인해주세요.';
@@ -77,8 +83,10 @@ export function LoginForm() {
             errorMessage = error.message;
           }
         }
-        
+
         setError(errorMessage);
+        // 에러가 있으면 대시보드로 이동하지 않음
+        return;
       } else {
         // 로그인 성공 시 세션이 저장될 시간을 주고 대시보드로 리다이렉트
         // 모바일에서 세션 저장 지연을 고려하여 지연 시간 증가 (200ms -> 300ms)

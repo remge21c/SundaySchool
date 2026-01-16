@@ -99,6 +99,7 @@ interface Teacher {
     department_names: string[];
     created_at: string;
     assigned_classes: { id: string; name: string; department: string; isMain: boolean }[];
+    status?: 'pending' | 'approved' | 'rejected';
 }
 
 interface Department {
@@ -623,6 +624,53 @@ export default function TeachersPage() {
         }
     };
 
+
+
+    // 교사 승인
+    const approveTeacher = async (teacherId: string) => {
+        if (!confirm('이 교사의 가입을 승인하시겠습니까?')) return;
+
+        try {
+            const { error } = await (supabase
+                .from('profiles') as any)
+                .update({ status: 'approved' })
+                .eq('id', teacherId);
+
+            if (error) throw error;
+
+            // 목록 갱신
+            setTeachers(teachers.map(t =>
+                t.id === teacherId ? { ...t, status: 'approved' } : t
+            ));
+            alert('승인되었습니다.');
+        } catch (error: any) {
+            console.error('승인 오류:', error);
+            alert('승인 처리에 실패했습니다: ' + error.message);
+        }
+    };
+
+    // 교사 삭제 (프로필 삭제)
+    const deleteTeacher = async (teacherId: string) => {
+        if (!confirm('정말로 이 교사를 삭제하시겠습니까?\n삭제된 계정은 복구할 수 없으며, 모든 권한과 배정이 사라집니다.')) return;
+
+        try {
+            // 1. 프로필 삭제
+            const { error } = await (supabase
+                .from('profiles') as any)
+                .delete()
+                .eq('id', teacherId);
+
+            if (error) throw error;
+
+            // 목록 갱신
+            setTeachers(teachers.filter(t => t.id !== teacherId));
+            alert('삭제되었습니다.');
+        } catch (error: any) {
+            console.error('삭제 오류:', error);
+            alert('삭제 처리에 실패했습니다: ' + error.message);
+        }
+    };
+
     // 현재 편집 중인 부서별 반 그룹 + 설정만 있는 부서
     const groupedAssignedClasses = useMemo(() => {
         if (!editData) return {};
@@ -807,7 +855,18 @@ export default function TeachersPage() {
                                             {visibleTeachers.map((teacher) => (
                                                 <TableRow key={teacher.id}>
                                                     <TableCell>
-                                                        <div className="font-medium">{teacher.full_name || '(이름 없음)'}</div>
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="font-medium">{teacher.full_name || '(이름 없음)'}</div>
+                                                            {teacher.status === 'pending' && (
+                                                                <Badge variant="destructive" className="text-[10px] h-5">승인대기</Badge>
+                                                            )}
+                                                            {teacher.status === 'approved' && (
+                                                                <Badge variant="outline" className="text-[10px] h-5 bg-green-50 text-green-700 border-green-300">승인됨</Badge>
+                                                            )}
+                                                            {teacher.status === 'rejected' && (
+                                                                <Badge variant="secondary" className="text-[10px] h-5 bg-gray-100 text-gray-500">거절됨</Badge>
+                                                            )}
+                                                        </div>
                                                         <div className="text-xs text-gray-500">{teacher.email}</div>
                                                     </TableCell>
                                                     <TableCell>
@@ -875,13 +934,38 @@ export default function TeachersPage() {
                                                     </TableCell>
                                                     <TableCell className="text-right">
                                                         {canEditTeacher(teacher) && (
-                                                            <Button
-                                                                size="sm"
-                                                                variant="ghost"
-                                                                onClick={() => startEdit(teacher, selectedDeptFilter)}
-                                                            >
-                                                                <Edit2 className="h-4 w-4" />
-                                                            </Button>
+                                                            <div className="flex items-center justify-end gap-1">
+                                                                {teacher.status === 'pending' && isAdmin && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        className="h-8 bg-green-600 hover:bg-green-700 text-white"
+                                                                        onClick={() => approveTeacher(teacher.id)}
+                                                                    >
+                                                                        승인
+                                                                    </Button>
+                                                                )}
+
+                                                                <Button
+                                                                    size="sm"
+                                                                    variant="ghost"
+                                                                    onClick={() => startEdit(teacher, selectedDeptFilter)}
+                                                                    title="수정"
+                                                                >
+                                                                    <Edit2 className="h-4 w-4" />
+                                                                </Button>
+
+                                                                {isAdmin && (
+                                                                    <Button
+                                                                        size="sm"
+                                                                        variant="ghost"
+                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
+                                                                        onClick={() => deleteTeacher(teacher.id)}
+                                                                        title="삭제"
+                                                                    >
+                                                                        <Trash2 className="h-4 w-4" />
+                                                                    </Button>
+                                                                )}
+                                                            </div>
                                                         )}
                                                     </TableCell>
                                                 </TableRow>

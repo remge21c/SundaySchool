@@ -18,24 +18,15 @@ export async function isAdmin(): Promise<boolean> {
       return false;
     }
 
-    // 자신의 프로필은 항상 조회 가능하므로 직접 조회
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await ((supabase
-      .from('profiles') as any)
-      .select('role')
-      .eq('id', user.id)
-      .single());
+    // RPC 함수로 역할 확인 (RLS 우회)
+    const { data: role, error } = await supabase.rpc('get_my_role');
 
     if (error) {
       console.error('관리자 권한 확인 중 에러:', error);
       return false;
     }
 
-    if (!data) {
-      return false;
-    }
-
-    return data.role === 'admin';
+    return role === 'admin';
   } catch (err) {
     console.error('관리자 권한 확인 중 예외:', err);
     return false;
@@ -56,18 +47,14 @@ export async function getUserRole(): Promise<'admin' | 'teacher' | 'parent' | nu
       return null;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await ((supabase
-      .from('profiles') as any)
-      .select('role')
-      .eq('id', user.id)
-      .single());
+    // RPC 함수로 역할 확인 (RLS 우회)
+    const { data: role, error } = await supabase.rpc('get_my_role');
 
-    if (error || !data) {
+    if (error || !role) {
       return null;
     }
 
-    return data.role as 'admin' | 'teacher' | 'parent';
+    return role as 'admin' | 'teacher' | 'parent';
   } catch {
     return null;
   }

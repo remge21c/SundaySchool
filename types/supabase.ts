@@ -27,6 +27,7 @@ export interface Database {
           avatar_url: string | null;
           position: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
           permission_scope: 'department' | 'class';
+          status: 'pending' | 'approved' | 'rejected';
           created_at: string;
           updated_at: string;
         };
@@ -40,6 +41,7 @@ export interface Database {
           avatar_url?: string | null;
           position?: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
           permission_scope?: 'department' | 'class';
+          status?: 'pending' | 'approved' | 'rejected';
           created_at?: string;
           updated_at?: string;
         };
@@ -53,6 +55,7 @@ export interface Database {
           avatar_url?: string | null;
           position?: 'pastor' | 'director' | 'secretary' | 'treasurer' | 'teacher';
           permission_scope?: 'department' | 'class';
+          status?: 'pending' | 'approved' | 'rejected';
           created_at?: string;
           updated_at?: string;
         };
