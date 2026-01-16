@@ -9,7 +9,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { DepartmentAttendanceStats } from '@/components/attendance/DepartmentAttendanceStats';
-import { BirthdayCard } from '@/components/attendance/BirthdayCard';
+
 import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -172,13 +172,7 @@ export default function AttendancePage() {
               <AttendanceStats classId={selectedClassId} date={selectedDate} />
             )}
 
-            {/* 이달의 생일자 (부서 선택 시: 부서 전체, 반 선택 시: 해당 반) */}
-            {selectedDepartment && (
-              <BirthdayCard departmentName={selectedDepartment} />
-            )}
-            {selectedClassId && !selectedDepartment && (
-              <BirthdayCard classId={selectedClassId} />
-            )}
+            {/* 이달의 생일자 표시 제거됨 */}
 
             {/* 학생 리스트 (반 선택 시) */}
             {selectedClassId ? (

@@ -625,16 +625,18 @@ export default function StudentsPage() {
         </div>
       )}
 
-      {/* Floating Bulk Action Bar */}
-      <StudentBulkActions
-        selectedCount={selectedStudentIds.size}
-        onMove={() => setIsMoveDialogOpen(true)}
-        onTransferDept={() => setIsTransferDeptDialogOpen(true)}
-        onPromote={() => setIsPromoteDialogOpen(true)}
-        onGraduate={() => setIsGraduateDialogOpen(true)}
-        onDelete={() => setIsDeleteDialogOpen(true)}
-        showGraduateButton={currentDepartmentName === '대학부' || currentDepartmentName === '청년부'}
-      />
+      {/* Floating Bulk Action Bar - 부서 권한이 있는 경우에만 표시 */}
+      {canAddStudent && (
+        <StudentBulkActions
+          selectedCount={selectedStudentIds.size}
+          onMove={() => setIsMoveDialogOpen(true)}
+          onTransferDept={() => setIsTransferDeptDialogOpen(true)}
+          onPromote={() => setIsPromoteDialogOpen(true)}
+          onGraduate={() => setIsGraduateDialogOpen(true)}
+          onDelete={() => setIsDeleteDialogOpen(true)}
+          showGraduateButton={currentDepartmentName === '대학부' || currentDepartmentName === '청년부'}
+        />
+      )}
 
       {/* Dialogs */}
       <StudentMoveDialog

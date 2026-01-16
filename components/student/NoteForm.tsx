@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState, useEffect, FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createNote } from '@/lib/supabase/notes';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/lib/supabase/client';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -25,14 +26,36 @@ interface NoteFormProps {
 export function NoteForm({ studentId, onSuccess }: NoteFormProps) {
   const queryClient = useQueryClient();
   const { user } = useAuth();
-  
+
   // 오늘 날짜를 기본값으로 사용
   const today = new Date();
   const todayStr = format(today, 'yyyy-MM-dd', { locale: ko });
-  
+
   const [noteDate, setNoteDate] = useState(todayStr);
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [authorName, setAuthorName] = useState<string>('');
+
+  // 사용자 프로필에서 이름 조회
+  useEffect(() => {
+    if (user?.id) {
+      (supabase
+        .from('profiles') as any)
+        .select('full_name')
+        .eq('id', user.id)
+        .single()
+        .then(({ data }: any) => {
+          if (data?.full_name) {
+            setAuthorName(data.full_name);
+          } else {
+            setAuthorName(user.email || '알 수 없음');
+          }
+        })
+        .catch(() => {
+          setAuthorName(user.email || '알 수 없음');
+        });
+    }
+  }, [user]);
 
   const mutation = useMutation({
     mutationFn: async (data: { student_id: string; teacher_id: string; note_date: string; content: string }) => {
@@ -41,12 +64,12 @@ export function NoteForm({ studentId, onSuccess }: NoteFormProps) {
     onSuccess: () => {
       // 쿼리 무효화로 메모 목록 새로고침
       queryClient.invalidateQueries({ queryKey: ['student-notes', studentId] });
-      
+
       // 폼 초기화
       setContent('');
       setNoteDate(todayStr);
       setError(null);
-      
+
       // 성공 콜백 실행
       if (onSuccess) {
         onSuccess();
@@ -114,7 +137,7 @@ export function NoteForm({ studentId, onSuccess }: NoteFormProps) {
               <Input
                 id="author"
                 type="text"
-                value={user?.email || '로그인 필요'}
+                value={authorName || '로그인 필요'}
                 disabled
                 className="bg-gray-50"
               />
