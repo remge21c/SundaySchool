@@ -5,7 +5,7 @@
 
 'use client';
 
-import { useState, useEffect, FormEvent } from 'react';
+import { useState, FormEvent } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createNote } from '@/lib/supabase/notes';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,6 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/lib/supabase/client';
 import { format } from 'date-fns';
 import { ko } from 'date-fns/locale';
 
@@ -34,28 +33,6 @@ export function NoteForm({ studentId, onSuccess }: NoteFormProps) {
   const [noteDate, setNoteDate] = useState(todayStr);
   const [content, setContent] = useState('');
   const [error, setError] = useState<string | null>(null);
-  const [authorName, setAuthorName] = useState<string>('');
-
-  // 사용자 프로필에서 이름 조회
-  useEffect(() => {
-    if (user?.id) {
-      (supabase
-        .from('profiles') as any)
-        .select('full_name')
-        .eq('id', user.id)
-        .single()
-        .then(({ data }: any) => {
-          if (data?.full_name) {
-            setAuthorName(data.full_name);
-          } else {
-            setAuthorName(user.email || '알 수 없음');
-          }
-        })
-        .catch(() => {
-          setAuthorName(user.email || '알 수 없음');
-        });
-    }
-  }, [user]);
 
   const mutation = useMutation({
     mutationFn: async (data: { student_id: string; teacher_id: string; note_date: string; content: string }) => {
@@ -117,31 +94,17 @@ export function NoteForm({ studentId, onSuccess }: NoteFormProps) {
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* 날짜 선택 */}
-            <div className="space-y-2">
-              <Label htmlFor="noteDate">날짜 *</Label>
-              <Input
-                id="noteDate"
-                type="date"
-                value={noteDate}
-                onChange={(e) => setNoteDate(e.target.value)}
-                required
-                disabled={mutation.isPending}
-              />
-            </div>
-
-            {/* 작성자 (읽기 전용) */}
-            <div className="space-y-2">
-              <Label htmlFor="author">작성자</Label>
-              <Input
-                id="author"
-                type="text"
-                value={authorName || '로그인 필요'}
-                disabled
-                className="bg-gray-50"
-              />
-            </div>
+          {/* 날짜 선택 */}
+          <div className="space-y-2">
+            <Label htmlFor="noteDate">날짜 *</Label>
+            <Input
+              id="noteDate"
+              type="date"
+              value={noteDate}
+              onChange={(e) => setNoteDate(e.target.value)}
+              required
+              disabled={mutation.isPending}
+            />
           </div>
 
           {/* 메모 내용 */}

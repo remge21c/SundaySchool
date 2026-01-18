@@ -775,10 +775,54 @@ export default function TeachersPage() {
                 }
             />
 
+            {/* 모바일: 부서 선택 목록 */}
+            <div className="md:hidden mb-4">
+                <Card>
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            부서
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent className="p-2">
+                        <div className="space-y-1">
+                            <button
+                                onClick={() => setSelectedDeptFilter(null)}
+                                className={cn(
+                                    'w-full text-left px-3 py-2 rounded-md text-sm transition-colors',
+                                    selectedDeptFilter === null
+                                        ? 'bg-blue-100 text-blue-700 font-medium'
+                                        : 'hover:bg-gray-100 text-gray-700'
+                                )}
+                            >
+                                전체 ({visibleTeachers.length})
+                            </button>
+                            {visibleDepartments.map((dept) => {
+                                const count = teachers.filter(t => t.department_names.includes(dept.name)).length;
+                                return (
+                                    <button
+                                        key={dept.id}
+                                        onClick={() => setSelectedDeptFilter(dept.name)}
+                                        className={cn(
+                                            'w-full text-left px-3 py-2 rounded-md text-sm transition-colors',
+                                            selectedDeptFilter === dept.name
+                                                ? 'bg-blue-100 text-blue-700 font-medium'
+                                                : 'hover:bg-gray-100 text-gray-700'
+                                        )}
+                                    >
+                                        {dept.name} ({count})
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+
             {/* 좌우 분할 레이아웃 */}
             <div className="flex gap-4">
-                {/* 왼쪽: 부서 사이드바 */}
-                <div className="w-48 flex-shrink-0">
+                {/* 왼쪽: 부서 사이드바 (데스크톱만) */}
+                <div className="hidden md:block w-48 flex-shrink-0">
                     <Card>
                         <CardHeader className="pb-2">
                             <CardTitle className="text-sm flex items-center gap-2">
@@ -848,12 +892,15 @@ export default function TeachersPage() {
                                             <TableRow>
                                                 <TableHead>이름</TableHead>
                                                 <TableHead>부서별 정보</TableHead>
-                                                <TableHead className="text-right">관리</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {visibleTeachers.map((teacher) => (
-                                                <TableRow key={teacher.id}>
+                                                <TableRow
+                                                    key={teacher.id}
+                                                    className="cursor-pointer hover:bg-gray-50"
+                                                    onClick={() => canEditTeacher(teacher) && startEdit(teacher, selectedDeptFilter)}
+                                                >
                                                     <TableCell>
                                                         <div className="flex items-center gap-2">
                                                             <div className="font-medium">{teacher.full_name || '(이름 없음)'}</div>
@@ -931,42 +978,6 @@ export default function TeachersPage() {
                                                                 </div>
                                                             );
                                                         })()}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        {canEditTeacher(teacher) && (
-                                                            <div className="flex items-center justify-end gap-1">
-                                                                {teacher.status === 'pending' && isAdmin && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        className="h-8 bg-green-600 hover:bg-green-700 text-white"
-                                                                        onClick={() => approveTeacher(teacher.id)}
-                                                                    >
-                                                                        승인
-                                                                    </Button>
-                                                                )}
-
-                                                                <Button
-                                                                    size="sm"
-                                                                    variant="ghost"
-                                                                    onClick={() => startEdit(teacher, selectedDeptFilter)}
-                                                                    title="수정"
-                                                                >
-                                                                    <Edit2 className="h-4 w-4" />
-                                                                </Button>
-
-                                                                {isAdmin && (
-                                                                    <Button
-                                                                        size="sm"
-                                                                        variant="ghost"
-                                                                        className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                                                                        onClick={() => deleteTeacher(teacher.id)}
-                                                                        title="삭제"
-                                                                    >
-                                                                        <Trash2 className="h-4 w-4" />
-                                                                    </Button>
-                                                                )}
-                                                            </div>
-                                                        )}
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -1198,13 +1209,30 @@ export default function TeachersPage() {
                         </div>
                     )}
 
-                    <DialogFooter>
-                        <Button variant="outline" onClick={cancelEdit} disabled={saving}>
-                            취소
-                        </Button>
-                        <Button onClick={saveEdit} disabled={saving}>
-                            {saving ? '저장 중...' : '저장'}
-                        </Button>
+                    <DialogFooter className="flex justify-between sm:justify-between">
+                        {isAdmin && editingTeacher && (
+                            <Button
+                                variant="destructive"
+                                onClick={() => {
+                                    if (editingTeacher) {
+                                        deleteTeacher(editingTeacher.id);
+                                        cancelEdit();
+                                    }
+                                }}
+                                disabled={saving}
+                            >
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                삭제
+                            </Button>
+                        )}
+                        <div className="flex gap-2">
+                            <Button variant="outline" onClick={cancelEdit} disabled={saving}>
+                                취소
+                            </Button>
+                            <Button onClick={saveEdit} disabled={saving}>
+                                {saving ? '저장 중...' : '저장'}
+                            </Button>
+                        </div>
                     </DialogFooter>
                 </DialogContent>
             </Dialog >
