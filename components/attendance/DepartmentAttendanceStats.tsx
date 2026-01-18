@@ -82,7 +82,7 @@ export function DepartmentAttendanceStats({ department, date, className }: Depar
                 <CardDescription>부서 전체 출석 현황을 확인하세요</CardDescription>
             </CardHeader>
             <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                     {/* 전체 학생 */}
                     <div className="flex flex-col items-center p-4 rounded-lg bg-gray-50">
                         <Users className="h-8 w-8 text-gray-600 mb-2" />
@@ -104,12 +104,7 @@ export function DepartmentAttendanceStats({ department, date, className }: Depar
                         <div className="text-sm text-red-600">결석</div>
                     </div>
 
-                    {/* 지각 */}
-                    <div className="flex flex-col items-center p-4 rounded-lg bg-amber-50">
-                        <Clock className="h-8 w-8 text-amber-600 mb-2" />
-                        <div className="text-2xl font-bold text-amber-700">{stats.late}</div>
-                        <div className="text-sm text-amber-600">지각</div>
-                    </div>
+                    {/* 지각 통계 숨김 처리됨 */}
 
                     {/* 출석률 */}
                     <div className="flex flex-col items-center p-4 rounded-lg bg-blue-50">

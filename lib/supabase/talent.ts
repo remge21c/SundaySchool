@@ -9,7 +9,7 @@ import type { Database } from '@/types/supabase';
 type TalentTransactionRow = Database['public']['Tables']['talent_transactions']['Row'];
 type TalentTransactionInsert = Database['public']['Tables']['talent_transactions']['Insert'];
 
-export interface TalentTransaction extends TalentTransactionRow {}
+export interface TalentTransaction extends TalentTransactionRow { }
 
 // talent_rules 테이블 타입 (Supabase 타입이 아직 생성되지 않았을 수 있으므로 임시로 정의)
 export interface TalentRule {
@@ -257,6 +257,61 @@ export async function deleteTalentRule(ruleId: string): Promise<void> {
     .from('talent_rules') as any)
     .delete()
     .eq('id', ruleId);
+
+  if (error) {
+    throw error;
+  }
+}
+
+/**
+ * 달란트 거래 수정
+ * @param transactionId 거래 ID
+ * @param input 수정할 데이터
+ * @returns 수정된 거래
+ */
+export interface UpdateTalentTransactionInput {
+  amount?: number;
+  category?: string;
+}
+
+export async function updateTalentTransaction(
+  transactionId: string,
+  input: UpdateTalentTransactionInput
+): Promise<TalentTransaction> {
+  const updateData: any = {};
+
+  if (input.amount !== undefined) updateData.amount = input.amount;
+  if (input.category !== undefined) updateData.category = input.category;
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (supabase
+    .from('talent_transactions') as any)
+    .update(updateData)
+    .eq('id', transactionId)
+    .select()
+    .single();
+
+  if (error) {
+    throw error;
+  }
+
+  if (!data) {
+    throw new Error('달란트 거래 수정에 실패했습니다.');
+  }
+
+  return data as TalentTransaction;
+}
+
+/**
+ * 달란트 거래 삭제
+ * @param transactionId 거래 ID
+ */
+export async function deleteTalentTransaction(transactionId: string): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { error } = await (supabase
+    .from('talent_transactions') as any)
+    .delete()
+    .eq('id', transactionId);
 
   if (error) {
     throw error;

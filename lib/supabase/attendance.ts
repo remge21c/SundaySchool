@@ -191,6 +191,47 @@ export async function getAttendanceLogsByClassAndDate(
 }
 
 /**
+ * 특정 반의 특정 날짜 출석 기록 초기화 (모든 기록 삭제)
+ * @param classId 반 ID
+ * @param date 날짜 (YYYY-MM-DD)
+ * @returns 삭제된 기록 수
+ */
+export async function resetAttendanceLogs(
+  classId: string,
+  date: string
+): Promise<number> {
+  // 먼저 삭제할 기록 수 조회
+  const { data: logsToDelete, error: countError } = await supabase
+    .from('attendance_logs')
+    .select('id')
+    .eq('class_id', classId)
+    .eq('date', date);
+
+  if (countError) {
+    throw countError;
+  }
+
+  const count = logsToDelete?.length ?? 0;
+
+  if (count === 0) {
+    return 0;
+  }
+
+  // 삭제 실행
+  const { error } = await supabase
+    .from('attendance_logs')
+    .delete()
+    .eq('class_id', classId)
+    .eq('date', date);
+
+  if (error) {
+    throw error;
+  }
+
+  return count;
+}
+
+/**
  * 출석 기록 생성 또는 업데이트 (Upsert)
  * @param input 출석 기록 데이터
  * @returns 생성/업데이트된 출석 기록

@@ -79,14 +79,10 @@ const getNextStatus = (currentStatus: AttendanceStatus | null): AttendanceStatus
     return 'present';
   }
   if (currentStatus === 'present') {
-    // 출석 → 지각
-    return 'late';
-  }
-  if (currentStatus === 'late') {
-    // 지각 → 결석
+    // 출석 → 결석 (지각 제외)
     return 'absent';
   }
-  // 결석 → 출석 (다시 시작)
+  // 결석(또는 기존 지각) → 출석 (다시 시작)
   return 'present';
 };
 

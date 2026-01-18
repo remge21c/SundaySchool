@@ -9,6 +9,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { StudentList } from '@/components/attendance/StudentList';
 import { AttendanceStats } from '@/components/attendance/AttendanceStats';
 import { DepartmentAttendanceStats } from '@/components/attendance/DepartmentAttendanceStats';
+import { AttendanceResetButton } from '@/components/attendance/AttendanceResetButton';
 
 import { ClassSidebar } from '@/components/class/ClassSidebar';
 import { PageHeader } from '@/components/layout/PageHeader';
@@ -177,7 +178,10 @@ export default function AttendancePage() {
             {/* 학생 리스트 (반 선택 시) */}
             {selectedClassId ? (
               <div>
-                <h2 className="text-xl font-semibold mb-4">학생 목록</h2>
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold">학생 목록</h2>
+                  <AttendanceResetButton classId={selectedClassId} date={selectedDate} />
+                </div>
                 <StudentList classId={selectedClassId} date={selectedDate} />
               </div>
             ) : selectedDepartment ? (
